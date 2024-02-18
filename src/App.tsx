@@ -30,9 +30,8 @@ function App() {
       }).toDestination(),
     [],
   );
-
   const { sendMessage, lastMessage, readyState } = useWebSocket(
-    "ws://192.168.50.21:8080/beep",
+    `wss://${window.location.hostname}/beep`,
   );
 
   const [unhandledMessage, setUnhandledMessage] = useState<any>(null);
@@ -48,9 +47,9 @@ function App() {
   useEffect(() => {
     if (unhandledMessage !== null) {
       if (unhandledMessage.type === MessageType.START) {
-        oscillators.get(unhandledMessage.id)?.start();
+        oscillators.get(unhandledMessage.operatorId)?.start();
       } else if (unhandledMessage.type === MessageType.STOP) {
-        oscillators.get(unhandledMessage.id)?.stop();
+        oscillators.get(unhandledMessage.operatorId)?.stop();
       } else if (unhandledMessage.type === MessageType.HELLO) {
         setMyOperatorId(unhandledMessage.operatorId);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
@@ -78,12 +77,12 @@ function App() {
     }
   }, [unhandledMessage, oscillators, myOperatorId]);
 
-  // const [started, setStarted] = useState(false);
-  //
-  // const startingAudio = useCallback(async () => {
-  //   await Tone.start();
-  //   setStarted(true);
-  // }, []);
+  const [started, setStarted] = useState(false);
+
+  const startingAudio = useCallback(async () => {
+    await Tone.start();
+    setStarted(true);
+  }, []);
 
   const connectionStatus = {
     [ReadyState.CONNECTING]: "Connecting",
@@ -132,7 +131,7 @@ function App() {
 
   return (
     <div className="app">
-      {/*{!started && <button onClick={startingAudio}>Join</button>}*/}
+      {!started && <button onClick={startingAudio}>Join</button>}
       <div className="app-container">
         <div>
           <span
@@ -140,6 +139,7 @@ function App() {
             style={{ backgroundColor: connectionColor }}
           ></span>
           <p>{connectionStatus}</p>
+          <p>my operator id: {myOperatorId}</p>
           <p>lastMessage: {lastMessage?.data}</p>
           <p>
             remote oscillators: {Array.from(oscillators.keys())?.join(", ")}
