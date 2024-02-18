@@ -1,22 +1,24 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as Tone from "tone";
 import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
-import { WebSocketHook } from "react-use-websocket/dist/lib/types";
 
-enum Command {
+enum MessageType {
+  HELLO = "HELLO",
   START = "START",
   STOP = "STOP",
+  OPERATORS = "OPERATORS",
 }
 
+const getOscillator = () =>
+  new Tone.Oscillator({
+    frequency: "1000",
+    type: "sine",
+  }).toDestination();
+
 function App() {
-  const remoteOscillator = useMemo(
-    () =>
-      new Tone.Oscillator({
-        frequency: "1000",
-        type: "sine",
-      }).toDestination(),
-    [],
+  const [oscillators, setOscillators] = useState(
+    new Map<string, Tone.Oscillator>(),
   );
 
   const myOscillator = useMemo(
@@ -24,28 +26,57 @@ function App() {
       new Tone.Oscillator({
         frequency: "800",
         type: "sine",
+        volume: -10,
       }).toDestination(),
     [],
   );
 
-  const {
-    sendMessage,
-    lastMessage,
-    readyState,
-  }: WebSocketHook<string, MessageEvent<string> | null> = useWebSocket(
+  const { sendMessage, lastMessage, readyState } = useWebSocket(
     "ws://192.168.50.21:8080/beep",
   );
 
+  const [unhandledMessage, setUnhandledMessage] = useState<any>(null);
+
   useEffect(() => {
     if (lastMessage !== null) {
-      const message = JSON.parse(lastMessage.data);
-      if (message.type === Command.START) {
-        remoteOscillator.start();
-      } else if (message.type === Command.STOP) {
-        remoteOscillator.stop();
-      }
+      setUnhandledMessage(JSON.parse(lastMessage.data));
     }
-  }, [lastMessage, remoteOscillator]);
+  }, [lastMessage]);
+
+  const [myOperatorId, setMyOperatorId] = useState<string>();
+
+  useEffect(() => {
+    if (unhandledMessage !== null) {
+      if (unhandledMessage.type === MessageType.START) {
+        oscillators.get(unhandledMessage.id)?.start();
+      } else if (unhandledMessage.type === MessageType.STOP) {
+        oscillators.get(unhandledMessage.id)?.stop();
+      } else if (unhandledMessage.type === MessageType.HELLO) {
+        setMyOperatorId(unhandledMessage.operatorId);
+      } else if (unhandledMessage.type === MessageType.OPERATORS) {
+        oscillators.forEach((oscillator) => oscillator.stop());
+
+        const operatorIds: [string] = unhandledMessage.operators.map(
+          (operator: { id: string }) => operator.id,
+        );
+
+        setOscillators((prevState) => {
+          const newState = new Map(prevState);
+
+          operatorIds
+            .filter((id) => !newState.has(id))
+            .filter((id) => id !== myOperatorId)
+            .forEach((id) => newState.set(id, getOscillator()));
+
+          Array.from(newState.keys())
+            .filter((key) => !operatorIds.includes(key))
+            .forEach((key) => newState.delete(key));
+          return newState;
+        });
+      }
+      setUnhandledMessage(null);
+    }
+  }, [unhandledMessage, oscillators, myOperatorId]);
 
   // const [started, setStarted] = useState(false);
   //
@@ -63,41 +94,56 @@ function App() {
   }[readyState];
 
   const send = useCallback(
-    (command: Command) => sendMessage(JSON.stringify({ type: command })),
+    (command: MessageType) => sendMessage(JSON.stringify({ type: command })),
     [sendMessage],
   );
 
   const onMouseDown = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.start();
-    send(Command.START);
+    send(MessageType.START);
   };
 
   const onTouchStart = (event: React.TouchEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.start();
-    send(Command.START);
+    send(MessageType.START);
   };
 
   const onMouseUp = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.stop();
-    send(Command.STOP);
+    send(MessageType.STOP);
   };
 
   const onTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.stop();
-    send(Command.STOP);
+    send(MessageType.STOP);
   };
+
+  const connectionColor = {
+    [ReadyState.CONNECTING]: "yellow",
+    [ReadyState.OPEN]: "green",
+    [ReadyState.CLOSING]: "red",
+    [ReadyState.CLOSED]: "black",
+    [ReadyState.UNINSTANTIATED]: "gray",
+  }[readyState];
 
   return (
     <div className="app">
       {/*{!started && <button onClick={startingAudio}>Join</button>}*/}
       <div className="app-container">
         <div>
+          <span
+            className="dot"
+            style={{ backgroundColor: connectionColor }}
+          ></span>
           <p>{connectionStatus}</p>
-          <p>{lastMessage?.data}</p>
+          <p>lastMessage: {lastMessage?.data}</p>
+          <p>
+            remote oscillators: {Array.from(oscillators.keys())?.join(", ")}
+          </p>
         </div>
         <div className="beep-container">
           <div

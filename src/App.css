@@ -9,6 +9,15 @@
   flex-direction: column;
 }
 
+.dot {
+  height: 12px;
+  width: 12px;
+  background-color: green;
+  border-radius: 50%;
+  display: inline-block;
+  margin: 8px;
+}
+
 .beep-container {
   display: flex;
   flex-grow: 1;
