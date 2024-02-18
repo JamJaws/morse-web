@@ -1,18 +1,24 @@
 .app {
   background-color: #282c34;
-  font-size: calc(12px + 2vmin);
   color: white;
 }
 
-.beep-container {
+.app-container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+}
+
+.beep-container {
+  display: flex;
+  flex-grow: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
 .beep {
+  font-size: calc(12px + 2vmin);
   user-select: none;
   border-radius: 25px;
   display: flex;
