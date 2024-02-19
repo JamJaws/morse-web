@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import * as Tone from "tone";
 import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
+import { useSearchParams } from "react-router-dom";
 
 enum MessageType {
   HELLO = "HELLO",
@@ -17,6 +18,8 @@ const getOscillator = () =>
   }).toDestination();
 
 function App() {
+  let [searchParams] = useSearchParams();
+
   const [oscillators, setOscillators] = useState(
     new Map<string, Tone.Oscillator>(),
   );
@@ -129,21 +132,17 @@ function App() {
     [ReadyState.UNINSTANTIATED]: "gray",
   }[readyState];
 
+  const debug =
+    searchParams.get("debug") === "" || searchParams.get("debug") === "true";
+
   return (
     <div className="app">
-      {!started && <button onClick={startingAudio}>Join</button>}
       <div className="app-container">
         <div>
           <span
             className="dot"
             style={{ backgroundColor: connectionColor }}
           ></span>
-          <p>{connectionStatus}</p>
-          <p>my operator id: {myOperatorId}</p>
-          <p>lastMessage: {lastMessage?.data}</p>
-          <p>
-            remote oscillators: {Array.from(oscillators.keys())?.join(", ")}
-          </p>
         </div>
         <div className="beep-container">
           <div
@@ -156,6 +155,17 @@ function App() {
             <p>beep beep beep</p>
           </div>
         </div>
+        {debug && (
+          <div>
+            {!started && <button onClick={startingAudio}>Join</button>}
+            <p>{connectionStatus}</p>
+            <p>my operator id: {myOperatorId}</p>
+            <p>lastMessage: {lastMessage?.data}</p>
+            <p>
+              remote oscillators: {Array.from(oscillators.keys())?.join(", ")}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
