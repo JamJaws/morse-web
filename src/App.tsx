@@ -50,14 +50,14 @@ function App() {
   useEffect(() => {
     if (unhandledMessage !== null) {
       if (unhandledMessage.type === MessageType.START) {
-        oscillators.get(unhandledMessage.operatorId)?.start();
+        let oscillator = oscillators.get(unhandledMessage.operatorId);
+        oscillator?.stop();
+        oscillator?.start();
       } else if (unhandledMessage.type === MessageType.STOP) {
         oscillators.get(unhandledMessage.operatorId)?.stop();
       } else if (unhandledMessage.type === MessageType.HELLO) {
         setMyOperatorId(unhandledMessage.operatorId);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
-        oscillators.forEach((oscillator) => oscillator.stop());
-
         const operatorIds: [string] = unhandledMessage.operators.map(
           (operator: { id: string }) => operator.id,
         );
@@ -72,7 +72,10 @@ function App() {
 
           Array.from(newState.keys())
             .filter((key) => !operatorIds.includes(key))
-            .forEach((key) => newState.delete(key));
+            .forEach((key) => {
+              newState.get(key)?.stop();
+              newState.delete(key);
+            });
           return newState;
         });
       }
