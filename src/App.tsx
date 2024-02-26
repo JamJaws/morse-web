@@ -127,6 +127,22 @@ function App() {
     send(MessageType.STOP);
   };
 
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === " ") {
+      event.preventDefault();
+      myOscillator.start();
+      send(MessageType.START);
+    }
+  };
+
+  const onKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === " ") {
+      event.preventDefault();
+      myOscillator.stop();
+      send(MessageType.STOP);
+    }
+  };
+
   const connectionColor = {
     [ReadyState.CONNECTING]: "yellow",
     [ReadyState.OPEN]: "green",
@@ -139,7 +155,7 @@ function App() {
     searchParams.get("debug") === "" || searchParams.get("debug") === "true";
 
   return (
-    <div className="app">
+    <div className="app" onKeyDown={onKeyDown} onKeyUp={onKeyUp} tabIndex={0}>
       <div className="app-container">
         <div>
           <span
