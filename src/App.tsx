@@ -18,9 +18,12 @@ enum MessageType {
   OPERATORS = "OPERATORS",
 }
 
+const getRandomInteger = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min)) + min;
+
 const getOscillator = () =>
   new Tone.Oscillator({
-    frequency: "600",
+    frequency: getRandomInteger(600, 1000),
     type: "sine",
   }).toDestination();
 
@@ -54,7 +57,7 @@ function App() {
   const myOscillator = useMemo(
     () =>
       new Tone.Oscillator({
-        frequency: "800",
+        frequency: getRandomInteger(600, 1000),
         type: "sine",
         volume: -10,
       }).toDestination(),
