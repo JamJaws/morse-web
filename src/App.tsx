@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as Tone from "tone";
 import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
@@ -24,8 +30,22 @@ const Main = styled.div`
   }
 `;
 
+const Hint = styled.p`
+  color: #d7d3cb;
+`;
+
 function App() {
   let [searchParams] = useSearchParams();
+
+  const inputReference = useRef<any>(null);
+
+  useEffect(() => {
+    inputReference?.current?.focus();
+  }, []);
+
+  const [focused, setFocused] = React.useState(false);
+  const onFocus = () => setFocused(true);
+  const onBlur = () => setFocused(false);
 
   const [oscillators, setOscillators] = useState(
     new Map<string, Tone.Oscillator>(),
@@ -162,7 +182,15 @@ function App() {
     searchParams.get("debug") === "" || searchParams.get("debug") === "true";
 
   return (
-    <Main className="app" onKeyDown={onKeyDown} onKeyUp={onKeyUp} tabIndex={0}>
+    <Main
+      className="app"
+      ref={inputReference}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      tabIndex={0}
+      onFocus={onFocus}
+      onBlur={onBlur}
+    >
       <div className="app-container">
         <div>
           <span
@@ -178,8 +206,10 @@ function App() {
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
           >
-            <p>beep beep beep</p>
+            <Hint>beep beep beep</Hint>
           </div>
+          {!focused && <Hint>use mouse</Hint>}
+          {focused && <Hint>use mouse or spacebar space</Hint>}
         </div>
         {debug && (
           <div>
