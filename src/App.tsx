@@ -3,6 +3,7 @@ import * as Tone from "tone";
 import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
+import styled from "@emotion/styled";
 
 enum MessageType {
   HELLO = "HELLO",
@@ -16,6 +17,12 @@ const getOscillator = () =>
     frequency: "1000",
     type: "sine",
   }).toDestination();
+
+const Main = styled.div`
+  :focus {
+    outline: none;
+  }
+`;
 
 function App() {
   let [searchParams] = useSearchParams();
@@ -155,7 +162,7 @@ function App() {
     searchParams.get("debug") === "" || searchParams.get("debug") === "true";
 
   return (
-    <div className="app" onKeyDown={onKeyDown} onKeyUp={onKeyUp} tabIndex={0}>
+    <Main className="app" onKeyDown={onKeyDown} onKeyUp={onKeyUp} tabIndex={0}>
       <div className="app-container">
         <div>
           <span
@@ -186,7 +193,7 @@ function App() {
           </div>
         )}
       </div>
-    </div>
+    </Main>
   );
 }
 
