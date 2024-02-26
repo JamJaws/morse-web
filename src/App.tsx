@@ -20,7 +20,7 @@ enum MessageType {
 
 const getOscillator = () =>
   new Tone.Oscillator({
-    frequency: "1000",
+    frequency: "600",
     type: "sine",
   }).toDestination();
 
