@@ -158,7 +158,7 @@ function App() {
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === " ") {
+    if (event.key === " " && !event.repeat) {
       event.preventDefault();
       myOscillator.start();
       send(MessageType.START);
