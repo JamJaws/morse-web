@@ -65,6 +65,11 @@ function App() {
   );
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
+    {
+      shouldReconnect: () => true,
+      reconnectInterval: (attemptNumber) =>
+        Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
+    },
   );
 
   const [unhandledMessage, setUnhandledMessage] = useState<any>(null);
