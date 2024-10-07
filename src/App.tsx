@@ -10,6 +10,7 @@ import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled";
+import SettingsButton from "./SettingsButton";
 
 enum MessageType {
   HELLO = "HELLO",
@@ -18,14 +19,10 @@ enum MessageType {
   OPERATORS = "OPERATORS",
 }
 
-const getRandomInteger = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min)) + min;
-
-const getOscillator = () =>
-  new Tone.Oscillator({
-    frequency: getRandomInteger(600, 1000),
-    type: "sine",
-  }).toDestination();
+interface Operator {
+  id: string;
+  frequency: number;
+}
 
 const Main = styled.div`
   :focus {
@@ -38,6 +35,13 @@ const Hint = styled.p`
 `;
 
 function App() {
+  const [showSettings, setShowSettings] = useState(false);
+  const [volume, setVolume] = useState(80);
+
+  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setVolume(Number(event.target.value));
+  };
+
   let [searchParams] = useSearchParams();
 
   const inputReference = useRef<any>(null);
@@ -46,22 +50,33 @@ function App() {
     inputReference?.current?.focus();
   }, []);
 
-  const [focused, setFocused] = React.useState(false);
+  const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
   const onBlur = () => setFocused(false);
 
-  const [oscillators, setOscillators] = useState(
-    new Map<string, Tone.Oscillator>(),
-  );
+  const [operators, setOperators] = useState<Operator[]>([]);
+
+  // TODO: stop oscillator if operator disconnects after start
+
+  const oscillators = useMemo<Map<string, Tone.Oscillator>>(() => {
+    return operators.reduce((map, operator) => {
+      const oscillator = new Tone.Oscillator({
+        frequency: operator.frequency,
+        type: "sine",
+        volume: Tone.gainToDb(volume / 100),
+      }).toDestination();
+      return map.set(operator.id, oscillator);
+    }, new Map<string, Tone.Oscillator>());
+  }, [operators, volume]);
 
   const myOscillator = useMemo(
     () =>
       new Tone.Oscillator({
-        frequency: getRandomInteger(600, 1000),
+        frequency: 800,
         type: "sine",
-        volume: -10,
+        volume: Tone.gainToDb(volume / 100),
       }).toDestination(),
-    [],
+    [volume],
   );
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
@@ -93,26 +108,7 @@ function App() {
       } else if (unhandledMessage.type === MessageType.HELLO) {
         setMyOperatorId(unhandledMessage.operatorId);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
-        const operatorIds: [string] = unhandledMessage.operators.map(
-          (operator: { id: string }) => operator.id,
-        );
-
-        setOscillators((prevState) => {
-          const newState = new Map(prevState);
-
-          operatorIds
-            .filter((id) => !newState.has(id))
-            .filter((id) => id !== myOperatorId)
-            .forEach((id) => newState.set(id, getOscillator()));
-
-          Array.from(newState.keys())
-            .filter((key) => !operatorIds.includes(key))
-            .forEach((key) => {
-              newState.get(key)?.stop();
-              newState.delete(key);
-            });
-          return newState;
-        });
+        setOperators(unhandledMessage.operators);
       }
       setUnhandledMessage(null);
     }
@@ -199,25 +195,47 @@ function App() {
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="app-container">
-        <div>
+      <div className="h-screen flex flex-col">
+        <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <span
-            className="dot"
+            className="dot w-4 h-4 rounded-full"
             style={{ backgroundColor: connectionColor }}
           ></span>
+          <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
-        <div className="beep-container">
-          <div
-            className="beep"
-            onMouseDown={onMouseDown}
-            onMouseUp={onMouseUp}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
-            <Hint>beep beep beep</Hint>
-          </div>
-          {!focused && <Hint>use mouse</Hint>}
-          {focused && <Hint>use mouse or spacebar space</Hint>}
+        <div className="flex flex-col items-center justify-center flex-grow my-4">
+          {!showSettings && (
+            <>
+              <div
+                className="beep"
+                onMouseDown={onMouseDown}
+                onMouseUp={onMouseUp}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+              >
+                <p>beep beep beep</p>
+              </div>
+              {!focused && <Hint>use mouse</Hint>}
+              {focused && <Hint>use mouse or spacebar space</Hint>}
+            </>
+          )}
+          {showSettings && (
+            <div className="flex flex-col items-center justify-center">
+              <p>Settings</p>
+              <label htmlFor="volume" className="text-white">
+                Volume: {volume}
+              </label>
+              <input
+                id="volume"
+                type="range"
+                min="0"
+                max="100"
+                value={volume}
+                onChange={handleVolumeChange}
+                onMouseUp={() => myOscillator.start().stop("+0.2")}
+              />
+            </div>
+          )}
         </div>
         {debug && (
           <div>
