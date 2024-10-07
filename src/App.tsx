@@ -11,12 +11,14 @@ import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled";
 import SettingsButton from "./SettingsButton";
+import debounce from "debounce";
 
 enum MessageType {
   HELLO = "HELLO",
   START = "START",
   STOP = "STOP",
   OPERATORS = "OPERATORS",
+  FREQUENCY = "FREQUENCY",
 }
 
 interface Operator {
@@ -40,6 +42,19 @@ function App() {
 
   const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(event.target.value));
+  };
+
+  const debouncedSendFrequency = useRef(
+    debounce((frequency: number) => {
+      sendMessage(JSON.stringify({ type: "FREQUENCY", frequency: frequency }));
+    }, 300),
+  ).current;
+
+  const handleFrequencyChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setMyFrequency(Number(event.target.value));
+    debouncedSendFrequency(Number(event.target.value));
   };
 
   let [searchParams] = useSearchParams();
@@ -69,14 +84,17 @@ function App() {
     }, new Map<string, Tone.Oscillator>());
   }, [operators, volume]);
 
+  const [myOperatorId, setMyOperatorId] = useState<string>();
+  const [myFrequency, setMyFrequency] = useState<number>(800);
+
   const myOscillator = useMemo(
     () =>
       new Tone.Oscillator({
-        frequency: 800,
+        frequency: myFrequency,
         type: "sine",
         volume: Tone.gainToDb(volume / 100),
       }).toDestination(),
-    [volume],
+    [myFrequency, volume],
   );
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
@@ -95,8 +113,6 @@ function App() {
     }
   }, [lastMessage]);
 
-  const [myOperatorId, setMyOperatorId] = useState<string>();
-
   useEffect(() => {
     if (unhandledMessage !== null) {
       if (unhandledMessage.type === MessageType.START) {
@@ -107,6 +123,7 @@ function App() {
         oscillators.get(unhandledMessage.operatorId)?.stop();
       } else if (unhandledMessage.type === MessageType.HELLO) {
         setMyOperatorId(unhandledMessage.operatorId);
+        setMyFrequency(unhandledMessage.frequency);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
         setOperators(unhandledMessage.operators);
       }
@@ -232,6 +249,18 @@ function App() {
                 max="100"
                 value={volume}
                 onChange={handleVolumeChange}
+                onMouseUp={() => myOscillator.start().stop("+0.2")}
+              />
+              <label htmlFor="frequency" className="text-white">
+                Frequency: {myFrequency}
+              </label>
+              <input
+                id="frequency"
+                type="range"
+                min="600"
+                max="1000"
+                value={myFrequency}
+                onChange={handleFrequencyChange}
                 onMouseUp={() => myOscillator.start().stop("+0.2")}
               />
             </div>
