@@ -19,6 +19,11 @@ enum MessageType {
   OPERATORS = "OPERATORS",
 }
 
+interface Operator {
+  id: string;
+  frequency: number;
+}
+
 const getRandomInteger = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min)) + min;
 
@@ -58,9 +63,20 @@ function App() {
   const onFocus = () => setFocused(true);
   const onBlur = () => setFocused(false);
 
-  const [oscillators, setOscillators] = useState(
-    new Map<string, Tone.Oscillator>(),
-  );
+  const [operators, setOperators] = useState<Operator[]>([]);
+
+  // TODO: stop oscillator if operator disconnects after start
+
+  const oscillators = useMemo<Map<string, Tone.Oscillator>>(() => {
+    return operators.reduce((map, operator) => {
+      const oscillator = new Tone.Oscillator({
+        frequency: operator.frequency,
+        type: "sine",
+        volume: Tone.gainToDb(volume / 100),
+      }).toDestination();
+      return map.set(operator.id, oscillator);
+    }, new Map<string, Tone.Oscillator>());
+  }, [operators, volume]);
 
   const myOscillator = useMemo(
     () =>
@@ -101,26 +117,7 @@ function App() {
       } else if (unhandledMessage.type === MessageType.HELLO) {
         setMyOperatorId(unhandledMessage.operatorId);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
-        const operatorIds: [string] = unhandledMessage.operators.map(
-          (operator: { id: string }) => operator.id,
-        );
-
-        setOscillators((prevState) => {
-          const newState = new Map(prevState);
-
-          operatorIds
-            .filter((id) => !newState.has(id))
-            .filter((id) => id !== myOperatorId)
-            .forEach((id) => newState.set(id, getOscillator()));
-
-          Array.from(newState.keys())
-            .filter((key) => !operatorIds.includes(key))
-            .forEach((key) => {
-              newState.get(key)?.stop();
-              newState.delete(key);
-            });
-          return newState;
-        });
+        setOperators(unhandledMessage.operators);
       }
       setUnhandledMessage(null);
     }
