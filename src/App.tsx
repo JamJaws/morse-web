@@ -9,7 +9,7 @@ import * as Tone from "tone";
 import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
-import styled from "@emotion/styled";
+import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
 
@@ -72,16 +72,41 @@ function App() {
   const [operators, setOperators] = useState<Operator[]>([]);
 
   // TODO: stop oscillator if operator disconnects after start
+  // think this is done
 
-  const oscillators = useMemo<Map<string, Tone.Oscillator>>(() => {
-    return operators.reduce((map, operator) => {
-      const oscillator = new Tone.Oscillator({
-        frequency: operator.frequency,
-        type: "sine",
-        volume: Tone.gainToDb(volume / 100),
-      }).toDestination();
-      return map.set(operator.id, oscillator);
-    }, new Map<string, Tone.Oscillator>());
+  const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
+    new Map(),
+  );
+
+  useEffect(() => {
+    setOscillators((prevOscillators) => {
+      const newOscillators = new Map(prevOscillators);
+
+      operators.forEach((operator) => {
+        if (!newOscillators.has(operator.id)) {
+          const oscillator = new Tone.Oscillator({
+            frequency: operator.frequency,
+            type: "sine",
+            volume: Tone.gainToDb(volume / 100),
+          }).toDestination();
+          newOscillators.set(operator.id, oscillator);
+        } else {
+          newOscillators.get(operator.id)?.set({
+            frequency: operator.frequency,
+            volume: Tone.gainToDb(volume / 100),
+          });
+        }
+      });
+
+      Array.from(newOscillators.keys())
+        .filter((key) => !operators.some((operator) => operator.id === key))
+        .forEach((key) => {
+          newOscillators.get(key)?.stop();
+          newOscillators.delete(key);
+        });
+
+      return newOscillators;
+    });
   }, [operators, volume]);
 
   const [myOperatorId, setMyOperatorId] = useState<string>();
@@ -99,6 +124,10 @@ function App() {
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
     {
+      onMessage: async (event) => {
+        console.log("message event", event.data);
+        // TODO handle message here
+      },
       shouldReconnect: () => true,
       reconnectInterval: (attemptNumber) =>
         Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
@@ -122,14 +151,16 @@ function App() {
       } else if (unhandledMessage.type === MessageType.STOP) {
         oscillators.get(unhandledMessage.operatorId)?.stop();
       } else if (unhandledMessage.type === MessageType.HELLO) {
+        console.log("HELLOOOO!"); // TODO delete
         setMyOperatorId(unhandledMessage.operatorId);
         setMyFrequency(unhandledMessage.frequency);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
         setOperators(unhandledMessage.operators);
+        console.log("unhandledMessage.operators"); // TODO delete
       }
       setUnhandledMessage(null);
     }
-  }, [unhandledMessage, oscillators, myOperatorId]);
+  }, [unhandledMessage, myOperatorId, oscillators]);
 
   const [started, setStarted] = useState(false);
 
