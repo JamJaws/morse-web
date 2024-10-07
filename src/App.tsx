@@ -26,7 +26,7 @@ const getOscillator = () =>
   new Tone.Oscillator({
     frequency: getRandomInteger(600, 1000),
     type: "sine",
-  }).toDestination();
+  }).toDestination(); // TODO use volume when frequency is sert from server
 
 const Main = styled.div`
   :focus {
@@ -40,6 +40,12 @@ const Hint = styled.p`
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
+  const [volume, setVolume] = useState(80);
+
+  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setVolume(Number(event.target.value));
+  };
+
   let [searchParams] = useSearchParams();
 
   const inputReference = useRef<any>(null);
@@ -59,11 +65,11 @@ function App() {
   const myOscillator = useMemo(
     () =>
       new Tone.Oscillator({
-        frequency: getRandomInteger(600, 1000),
+        frequency: 800,
         type: "sine",
-        volume: -10,
+        volume: Tone.gainToDb(volume / 100),
       }).toDestination(),
-    [],
+    [volume],
   );
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
@@ -201,7 +207,7 @@ function App() {
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="min-h-screen flex flex-col">
+      <div className="h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <span
             className="dot w-4 h-4 rounded-full"
@@ -209,20 +215,40 @@ function App() {
           ></span>
           <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
-        <div className="beep-container my-4">
-          <div
-            className="beep"
-            onMouseDown={onMouseDown}
-            onMouseUp={onMouseUp}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
-            <Hint>beep beep beep</Hint>
-          </div>
-          {!focused && <Hint>use mouse</Hint>}
-          {focused && <Hint>use mouse or spacebar space</Hint>}
+        <div className="flex flex-col items-center justify-center flex-grow my-4">
+          {!showSettings && (
+            <>
+              <div
+                className="beep"
+                onMouseDown={onMouseDown}
+                onMouseUp={onMouseUp}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+              >
+                <p>beep beep beep</p>
+              </div>
+              {!focused && <Hint>use mouse</Hint>}
+              {focused && <Hint>use mouse or spacebar space</Hint>}
+            </>
+          )}
+          {showSettings && (
+            <div className="flex flex-col items-center justify-center">
+              <p>Settings</p>
+              <label htmlFor="volume" className="text-white">
+                Volume: {volume}
+              </label>
+              <input
+                id="volume"
+                type="range"
+                min="0"
+                max="100"
+                value={volume}
+                onChange={handleVolumeChange}
+                onMouseUp={() => myOscillator.start().stop("+0.2")}
+              />
+            </div>
+          )}
         </div>
-        {!showSettings && <div>Settings</div>}
         {debug && (
           <div>
             {!started && <button onClick={startingAudio}>Join</button>}
