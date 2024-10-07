@@ -24,15 +24,6 @@ interface Operator {
   frequency: number;
 }
 
-const getRandomInteger = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min)) + min;
-
-const getOscillator = () =>
-  new Tone.Oscillator({
-    frequency: getRandomInteger(600, 1000),
-    type: "sine",
-  }).toDestination(); // TODO use volume when frequency is sert from server
-
 const Main = styled.div`
   :focus {
     outline: none;
