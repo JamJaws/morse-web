@@ -10,6 +10,7 @@ import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled";
+import SettingsButton from "./SettingsButton";
 
 enum MessageType {
   HELLO = "HELLO",
@@ -38,6 +39,7 @@ const Hint = styled.p`
 `;
 
 function App() {
+  const [showSettings, setShowSettings] = useState(false);
   let [searchParams] = useSearchParams();
 
   const inputReference = useRef<any>(null);
@@ -46,7 +48,7 @@ function App() {
     inputReference?.current?.focus();
   }, []);
 
-  const [focused, setFocused] = React.useState(false);
+  const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
   const onBlur = () => setFocused(false);
 
@@ -199,14 +201,15 @@ function App() {
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="app-container">
-        <div>
+      <div className="min-h-screen flex flex-col">
+        <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <span
-            className="dot"
+            className="dot w-4 h-4 rounded-full"
             style={{ backgroundColor: connectionColor }}
           ></span>
+          <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
-        <div className="beep-container">
+        <div className="beep-container my-4">
           <div
             className="beep"
             onMouseDown={onMouseDown}
@@ -219,6 +222,7 @@ function App() {
           {!focused && <Hint>use mouse</Hint>}
           {focused && <Hint>use mouse or spacebar space</Hint>}
         </div>
+        {!showSettings && <div>Settings</div>}
         {debug && (
           <div>
             {!started && <button onClick={startingAudio}>Join</button>}
