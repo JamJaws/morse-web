@@ -121,10 +121,6 @@ function App() {
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
     {
-      onMessage: async (event) => {
-        console.log("message event", event.data);
-        // TODO handle message here
-      },
       shouldReconnect: () => true,
       reconnectInterval: (attemptNumber) =>
         Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
@@ -148,12 +144,10 @@ function App() {
       } else if (unhandledMessage.type === MessageType.STOP) {
         oscillators.get(unhandledMessage.operatorId)?.stop();
       } else if (unhandledMessage.type === MessageType.HELLO) {
-        console.log("HELLOOOO!"); // TODO delete
         setMyOperatorId(unhandledMessage.operatorId);
         setMyFrequency(unhandledMessage.frequency);
       } else if (unhandledMessage.type === MessageType.OPERATORS) {
         setOperators(unhandledMessage.operators);
-        console.log("unhandledMessage.operators"); // TODO delete
       }
       setUnhandledMessage(null);
     }
