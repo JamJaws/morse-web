@@ -21,6 +21,11 @@ enum MessageType {
   FREQUENCY = "FREQUENCY",
 }
 
+type Message = {
+  type: MessageType;
+  [key: string]: any;
+};
+
 interface Operator {
   id: string;
   frequency: number;
@@ -108,37 +113,32 @@ function App() {
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
     {
+      onMessage: async (event) => {
+        handleMessage(JSON.parse(event.data));
+      },
       shouldReconnect: () => true,
       reconnectInterval: (attemptNumber) =>
         Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
     },
   );
 
-  const [unhandledMessage, setUnhandledMessage] = useState<any>(null);
-
-  useEffect(() => {
-    if (lastMessage !== null) {
-      setUnhandledMessage(JSON.parse(lastMessage.data));
-    }
-  }, [lastMessage]);
-
-  useEffect(() => {
-    if (unhandledMessage !== null) {
-      if (unhandledMessage.type === MessageType.START) {
-        let oscillator = oscillators.get(unhandledMessage.operatorId);
+  const handleMessage = useCallback(
+    (message: Message) => {
+      if (message.type === MessageType.START) {
+        let oscillator = oscillators.get(message.operatorId);
         oscillator?.stop();
         oscillator?.start();
-      } else if (unhandledMessage.type === MessageType.STOP) {
-        oscillators.get(unhandledMessage.operatorId)?.stop();
-      } else if (unhandledMessage.type === MessageType.HELLO) {
-        setMyOperatorId(unhandledMessage.operatorId);
-        setMyFrequency(unhandledMessage.frequency);
-      } else if (unhandledMessage.type === MessageType.OPERATORS) {
-        setOperators(unhandledMessage.operators);
+      } else if (message.type === MessageType.STOP) {
+        oscillators.get(message.operatorId)?.stop();
+      } else if (message.type === MessageType.HELLO) {
+        setMyOperatorId(message.operatorId);
+        setMyFrequency(message.frequency);
+      } else if (message.type === MessageType.OPERATORS) {
+        setOperators(message.operators);
       }
-      setUnhandledMessage(null);
-    }
-  }, [unhandledMessage, myOperatorId, oscillators]);
+    },
+    [oscillators],
+  );
 
   const [started, setStarted] = useState(false);
 
