@@ -71,9 +71,6 @@ function App() {
 
   const [operators, setOperators] = useState<Operator[]>([]);
 
-  // TODO: stop oscillator if operator disconnects after start
-  // think this is done
-
   const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
     new Map(),
   );
