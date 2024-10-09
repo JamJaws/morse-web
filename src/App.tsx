@@ -13,6 +13,8 @@ import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
 
+const TARGET_DELAY = 200;
+
 enum MessageType {
   HELLO = "HELLO",
   START = "START",
@@ -40,6 +42,8 @@ const Main = styled.div`
 const Hint = styled.p`
   color: #d7d3cb;
 `;
+
+const millisecondsToSeconds = (diff: number) => diff / 1_000;
 
 function App() {
   const [searchParams] = useSearchParams();
@@ -92,6 +96,7 @@ function App() {
         .forEach((key) => {
           newOscillators.get(key)?.stop();
           newOscillators.delete(key);
+          // TODO maybe delete diffs here
         });
 
       return newOscillators;
@@ -110,11 +115,18 @@ function App() {
       }).toDestination(),
     [myFrequency, volume],
   );
+
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
     {
       onMessage: async (event) => {
+        console.log("message event", event.data);
         handleMessage(JSON.parse(event.data));
+        // TODO put in queue and handle
+        // TODO handle message here instead of in lastMessage
+      },
+      onOpen: () => {
+        // TODO send frequency
       },
       shouldReconnect: () => true,
       reconnectInterval: (attemptNumber) =>
@@ -122,22 +134,51 @@ function App() {
     },
   );
 
+  const [diffs, setDiffs] = useState<Map<string, number>>(new Map());
+
+  const getDelayOffsetDiff = useCallback(
+    (operatorId: string, timestamp: number) => {
+      const currentDiff = Date.now() - timestamp;
+      const delay = TARGET_DELAY + (diffs.get(operatorId)! - currentDiff); // TODO operatorId might not exist
+      return `+${millisecondsToSeconds(delay)}`;
+    },
+    [diffs],
+  );
+
   const handleMessage = useCallback(
     (message: Message) => {
       if (message.type === MessageType.START) {
-        let oscillator = oscillators.get(message.operatorId);
-        oscillator?.stop();
-        oscillator?.start();
+        const oscillator = oscillators.get(message.operatorId);
+
+        if (diffs.has(message.operatorId)) {
+          const time = getDelayOffsetDiff(
+            message.operatorId,
+            message.timestamp,
+          );
+          oscillator?.stop(time);
+          oscillator?.start(time);
+        } else {
+          setDiffs((prevDiffs) => {
+            return new Map(prevDiffs).set(
+              message.operatorId,
+              Date.now() - message.timestamp,
+            );
+          });
+          oscillator?.stop();
+          oscillator?.start(`+${millisecondsToSeconds(TARGET_DELAY)}`);
+        }
       } else if (message.type === MessageType.STOP) {
-        oscillators.get(message.operatorId)?.stop();
+        const oscillator = oscillators.get(message.operatorId);
+        const time = getDelayOffsetDiff(message.operatorId, message.timestamp);
+        oscillator?.stop(time);
       } else if (message.type === MessageType.HELLO) {
-        setMyOperatorId(message.operatorId);
+        setMyOperatorId(message.operatorId); // TODO combine with next line
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
         setOperators(message.operators);
       }
     },
-    [oscillators],
+    [diffs, oscillators, getDelayOffsetDiff],
   );
 
   const [started, setStarted] = useState(false);
@@ -182,32 +223,32 @@ function App() {
   const onMouseDown = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.start();
-    send(MessageType.START);
+    send(MessageType.START, { timestamp: Date.now() });
   };
 
   const onTouchStart = (event: React.TouchEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.start();
-    send(MessageType.START);
+    send(MessageType.START, { timestamp: Date.now() });
   };
 
   const onMouseUp = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.stop();
-    send(MessageType.STOP);
+    send(MessageType.STOP, { timestamp: Date.now() });
   };
 
   const onTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
     event.preventDefault();
     myOscillator.stop();
-    send(MessageType.STOP);
+    send(MessageType.STOP, { timestamp: Date.now() });
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === " " && !event.repeat) {
       event.preventDefault();
       myOscillator.start();
-      send(MessageType.START);
+      send(MessageType.START, { timestamp: Date.now() });
     }
   };
 
@@ -215,7 +256,7 @@ function App() {
     if (event.key === " ") {
       event.preventDefault();
       myOscillator.stop();
-      send(MessageType.STOP);
+      send(MessageType.STOP, { timestamp: Date.now() });
     }
   };
 
@@ -247,7 +288,9 @@ function App() {
               className="w-4 h-4 rounded-full"
               style={{ backgroundColor: connectionColor }}
             ></span>
-            <p className="text-gray-300">{operators.length}</p>
+            <p className="text-gray-300">
+              {(connectionStatus === "Open" && operators.length) || "~"}
+            </p>
           </div>
           <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
