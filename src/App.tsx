@@ -236,10 +236,13 @@ function App() {
     >
       <div className="h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
-          <span
-            className="dot w-4 h-4 rounded-full"
-            style={{ backgroundColor: connectionColor }}
-          ></span>
+          <div className="flex items-center gap-4">
+            <span
+              className="w-4 h-4 rounded-full"
+              style={{ backgroundColor: connectionColor }}
+            ></span>
+            <p className="text-gray-300">{operators.length}</p>
+          </div>
           <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
         <div className="flex flex-col items-center justify-center flex-grow my-4">
