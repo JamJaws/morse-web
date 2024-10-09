@@ -37,27 +37,14 @@ const Hint = styled.p`
 `;
 
 function App() {
+  const [searchParams] = useSearchParams();
+
   const [showSettings, setShowSettings] = useState(false);
   const [volume, setVolume] = useState(80);
 
   const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(event.target.value));
   };
-
-  const debouncedSendFrequency = useRef(
-    debounce((frequency: number) => {
-      sendMessage(JSON.stringify({ type: "FREQUENCY", frequency: frequency }));
-    }, 300),
-  ).current;
-
-  const handleFrequencyChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setMyFrequency(Number(event.target.value));
-    debouncedSendFrequency(Number(event.target.value));
-  };
-
-  let [searchParams] = useSearchParams();
 
   const inputReference = useRef<any>(null);
 
@@ -169,8 +156,27 @@ function App() {
   }[readyState];
 
   const send = useCallback(
-    (command: MessageType) => sendMessage(JSON.stringify({ type: command })),
+    (
+      command: MessageType,
+      properties: { [key: string]: string | number } = {},
+    ) => sendMessage(JSON.stringify({ type: command, ...properties })),
     [sendMessage],
+  );
+
+  const debouncedSendFrequency = useMemo(
+    () =>
+      debounce((frequency: number) => {
+        send(MessageType.FREQUENCY, { frequency });
+      }, 300),
+    [send],
+  );
+
+  const handleFrequencyChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMyFrequency(Number(event.target.value));
+      debouncedSendFrequency(Number(event.target.value));
+    },
+    [debouncedSendFrequency],
   );
 
   const onMouseDown = (event: React.MouseEvent<HTMLElement>) => {
