@@ -1,12 +1,12 @@
 .app {
-  background-color: #282c34;
-  color: white;
+  /*background-color: #282c34;*/
+  /*color: white;*/
 }
 
 .app-container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  /*min-height: 100vh;*/
+  /*display: flex;*/
+  /*flex-direction: column;*/
 }
 
 .dot {
@@ -27,25 +27,26 @@
 /*}*/
 
 .beep {
-  font-size: calc(12px + 2vmin);
-  user-select: none;
-  border-radius: 25px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  background-color: #3e4451;
-  min-height: 50vmin;
-  min-width: 50vmin;
+  /*font-size: calc(12px + 2vmin);*/
+  /*user-select: none;*/
+  /*border-radius: 25px;*/
+  /*display: flex;*/
+  /*flex-direction: column;*/
+  /*align-items: center;*/
+  /*justify-content: center;*/
+  /*text-align: center;*/
+  /*background-color: #3e4451;*/
 
-  @media (width < 1024px) {
-    min-height: 65vmin;
-    width: 65vmin;
-  }
+  /*min-height: 50vmin;*/
+  /*min-width: 50vmin;*/
 
-  @media (width < 768px) {
-    min-height: 80vmin;
-    width: 80vmin;
-  }
+  /*@media (width < 1024px) {*/
+  /*  min-height: 65vmin;*/
+  /*  width: 65vmin;*/
+  /*}*/
+
+  /*@media (width < 768px) {*/
+  /*  min-height: 80vmin;*/
+  /*  width: 80vmin;*/
+  /*}*/
 }

@@ -13,6 +13,8 @@ import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
 import { FaBroadcastTower, FaExclamationTriangle } from "react-icons/fa";
+import MorseCodeTable from "./beep/MorseCodeTable";
+import { wpmToDuration } from "./beep/MorseCodeDuration";
 
 const TARGET_DELAY = 200;
 
@@ -72,6 +74,7 @@ function App() {
   const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
     new Map(),
   );
+  const [time, setTime] = useState(Tone.now());
 
   useEffect(() => {
     setOscillators((prevOscillators) => {
@@ -253,6 +256,44 @@ function App() {
     [stop],
   );
 
+  const wpm = 20;
+  const durations = useMemo(() => wpmToDuration(wpm), [wpm]);
+
+  const handleCode = useCallback(
+    (code: string) => {
+      console.log("handle code: ", code);
+
+      let startTime = Math.max(Tone.now(), time);
+      let lastChar = "";
+      for (const char of code) {
+        if (lastChar === "." || lastChar === "-") {
+          startTime += durations.dot; // Space between parts of the same letter
+        }
+        switch (char) {
+          case ".":
+            myOscillator?.start(startTime).stop(startTime + durations.dot);
+            startTime += durations.dot;
+            break;
+          case "-":
+            myOscillator?.start(startTime).stop(startTime + durations.dash);
+            startTime += durations.dash;
+            break;
+          case " ":
+            startTime += durations.dash;
+            break;
+          case "/":
+            startTime += durations.space;
+            break;
+        }
+        lastChar = char;
+      }
+
+      myOscillator?.stop(startTime);
+      setTime(startTime);
+    },
+    [durations, myOscillator, time],
+  );
+
   const connectionColor = {
     [ReadyState.CONNECTING]: "yellow",
     [ReadyState.OPEN]: "green",
@@ -266,7 +307,7 @@ function App() {
 
   return (
     <Main
-      className="app"
+      className="bg-slate-800 text-white outline-none"
       ref={inputReference}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
@@ -274,7 +315,7 @@ function App() {
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <div className="flex items-center gap-4">
             <span
@@ -305,17 +346,22 @@ function App() {
           )}
           {started && !showSettings && (
             <>
-              <div
-                className="beep"
+              <button
+                className="text-[calc(12px+2vmin)] bg-slate-700 aspect-square min-w-[80vmin] sm:min-w-[65vmin] md:min-w-[50vmin] rounded-3xl gap-3 transition duration-300 ease-in-out hover:bg-slate-600 hover:shadow-lg"
                 onMouseDown={start}
                 onMouseUp={stop}
                 onTouchStart={start}
                 onTouchEnd={stop}
               >
                 <p>beep beep beep</p>
-              </div>
+              </button>
               {!focused && <Hint>use mouse</Hint>}
               {focused && <Hint>use mouse or spacebar space</Hint>}
+
+              <div className="h-16" />
+              <MorseCodeTable
+                onClick={(character) => handleCode(character.code)}
+              ></MorseCodeTable>
             </>
           )}
           {showSettings && (
