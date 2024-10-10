@@ -12,6 +12,7 @@ import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
+import { FaBroadcastTower, FaExclamationTriangle } from "react-icons/fa";
 
 const TARGET_DELAY = 200;
 
@@ -48,6 +49,7 @@ const millisecondsToSeconds = (diff: number) => diff / 1_000;
 function App() {
   const [searchParams] = useSearchParams();
 
+  const [started, setStarted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [volume, setVolume] = useState(80);
 
@@ -74,47 +76,47 @@ function App() {
   useEffect(() => {
     setOscillators((prevOscillators) => {
       const newOscillators = new Map(prevOscillators);
-
-      operators.forEach((operator) => {
-        if (!newOscillators.has(operator.id)) {
-          const oscillator = new Tone.Oscillator({
-            frequency: operator.frequency,
-            type: "sine",
-            volume: Tone.gainToDb(volume / 100),
-          }).toDestination();
-          newOscillators.set(operator.id, oscillator);
-        } else {
-          newOscillators.get(operator.id)?.set({
-            frequency: operator.frequency,
-            volume: Tone.gainToDb(volume / 100),
-          });
-        }
-      });
-
-      Array.from(newOscillators.keys())
-        .filter((key) => !operators.some((operator) => operator.id === key))
-        .forEach((key) => {
-          newOscillators.get(key)?.stop();
-          newOscillators.delete(key);
-          // TODO maybe delete diffs here
+      if (started) {
+        operators.forEach((operator) => {
+          if (!newOscillators.has(operator.id)) {
+            const oscillator = new Tone.Oscillator({
+              frequency: operator.frequency,
+              type: "sine",
+              volume: Tone.gainToDb(volume / 100),
+            }).toDestination();
+            newOscillators.set(operator.id, oscillator);
+          } else {
+            newOscillators.get(operator.id)?.set({
+              frequency: operator.frequency,
+              volume: Tone.gainToDb(volume / 100),
+            });
+          }
         });
 
+        Array.from(newOscillators.keys())
+          .filter((key) => !operators.some((operator) => operator.id === key))
+          .forEach((key) => {
+            newOscillators.get(key)?.stop();
+            newOscillators.delete(key);
+            // TODO maybe delete diffs here
+          });
+      }
       return newOscillators;
     });
-  }, [operators, volume]);
+  }, [started, operators, volume]);
 
   const [myOperatorId, setMyOperatorId] = useState<string>();
   const [myFrequency, setMyFrequency] = useState<number>(800);
 
-  const myOscillator = useMemo(
-    () =>
-      new Tone.Oscillator({
+  const myOscillator = useMemo(() => {
+    if (started) {
+      return new Tone.Oscillator({
         frequency: myFrequency,
         type: "sine",
         volume: Tone.gainToDb(volume / 100),
-      }).toDestination(),
-    [myFrequency, volume],
-  );
+      }).toDestination();
+    }
+  }, [started, myFrequency, volume]);
 
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
@@ -178,9 +180,7 @@ function App() {
     [diffs, oscillators, getDelayOffsetDiff],
   );
 
-  const [started, setStarted] = useState(false);
-
-  const startingAudio = useCallback(async () => {
+  const startAudio = useCallback(async () => {
     await Tone.start();
     setStarted(true);
   }, []);
@@ -220,7 +220,7 @@ function App() {
   const start = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
-      myOscillator.start();
+      myOscillator?.start();
       send(MessageType.START, { timestamp: Date.now() });
     },
     [myOscillator, send],
@@ -229,7 +229,7 @@ function App() {
   const stop = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
-      myOscillator.stop();
+      myOscillator?.stop();
       send(MessageType.STOP, { timestamp: Date.now() });
     },
     [myOscillator, send],
@@ -288,7 +288,22 @@ function App() {
           <SettingsButton onClick={() => setShowSettings(!showSettings)} />
         </div>
         <div className="flex flex-col items-center justify-center flex-grow my-4">
-          {!showSettings && (
+          {!started && !showSettings && (
+            <div className="flex flex-col items-center justify-center gap-2">
+              <button
+                className="bg-gray-300 text-gray-800 text-lg rounded-full px-4 py-2 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center gap-2"
+                onClick={startAudio}
+              >
+                <FaBroadcastTower />
+                <span>Join</span>
+              </button>
+              <div className="flex items-center text-yellow-400 text-sm">
+                <FaExclamationTriangle className="mr-1" />
+                <span>You may hear tones when pressing the button</span>
+              </div>
+            </div>
+          )}
+          {started && !showSettings && (
             <>
               <div
                 className="beep"
@@ -316,7 +331,7 @@ function App() {
                 max="100"
                 value={volume}
                 onChange={handleVolumeChange}
-                onMouseUp={() => myOscillator.start().stop("+0.2")}
+                onMouseUp={() => myOscillator?.start().stop("+0.2")}
               />
               <label htmlFor="frequency" className="text-white">
                 Frequency: {myFrequency}
@@ -328,14 +343,14 @@ function App() {
                 max="1000"
                 value={myFrequency}
                 onChange={handleFrequencyChange}
-                onMouseUp={() => myOscillator.start().stop("+0.2")}
+                onMouseUp={() => myOscillator?.start().stop("+0.2")}
               />
             </div>
           )}
         </div>
         {debug && (
           <div>
-            {!started && <button onClick={startingAudio}>Join</button>}
+            {!started && <button onClick={startAudio}>Join</button>}
             <p>{connectionStatus}</p>
             <p>my operator id: {myOperatorId}</p>
             <p>lastMessage: {lastMessage?.data}</p>
