@@ -120,10 +120,7 @@ function App() {
     `wss://${window.location.hostname}/beep`,
     {
       onMessage: async (event) => {
-        console.log("message event", event.data);
         handleMessage(JSON.parse(event.data));
-        // TODO put in queue and handle
-        // TODO handle message here instead of in lastMessage
       },
       onOpen: () => {
         // TODO send frequency
@@ -172,7 +169,7 @@ function App() {
         const time = getDelayOffsetDiff(message.operatorId, message.timestamp);
         oscillator?.stop(time);
       } else if (message.type === MessageType.HELLO) {
-        setMyOperatorId(message.operatorId); // TODO combine with next line
+        setMyOperatorId(message.operatorId);
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
         setOperators(message.operators);
@@ -220,45 +217,41 @@ function App() {
     [debouncedSendFrequency],
   );
 
-  const onMouseDown = (event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    myOscillator.start();
-    send(MessageType.START, { timestamp: Date.now() });
-  };
-
-  const onTouchStart = (event: React.TouchEvent<HTMLElement>) => {
-    event.preventDefault();
-    myOscillator.start();
-    send(MessageType.START, { timestamp: Date.now() });
-  };
-
-  const onMouseUp = (event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    myOscillator.stop();
-    send(MessageType.STOP, { timestamp: Date.now() });
-  };
-
-  const onTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
-    event.preventDefault();
-    myOscillator.stop();
-    send(MessageType.STOP, { timestamp: Date.now() });
-  };
-
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === " " && !event.repeat) {
+  const start = useCallback(
+    (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
       myOscillator.start();
       send(MessageType.START, { timestamp: Date.now() });
-    }
-  };
+    },
+    [myOscillator, send],
+  );
 
-  const onKeyUp = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === " ") {
+  const stop = useCallback(
+    (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
       myOscillator.stop();
       send(MessageType.STOP, { timestamp: Date.now() });
-    }
-  };
+    },
+    [myOscillator, send],
+  );
+
+  const onKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === " " && !event.repeat) {
+        start(event);
+      }
+    },
+    [start],
+  );
+
+  const onKeyUp = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === " ") {
+        stop(event);
+      }
+    },
+    [stop],
+  );
 
   const connectionColor = {
     [ReadyState.CONNECTING]: "yellow",
@@ -299,10 +292,10 @@ function App() {
             <>
               <div
                 className="beep"
-                onMouseDown={onMouseDown}
-                onMouseUp={onMouseUp}
-                onTouchStart={onTouchStart}
-                onTouchEnd={onTouchEnd}
+                onMouseDown={start}
+                onMouseUp={stop}
+                onTouchStart={start}
+                onTouchEnd={stop}
               >
                 <p>beep beep beep</p>
               </div>
