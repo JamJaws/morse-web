@@ -12,7 +12,11 @@ import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
-import { FaBroadcastTower, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaBroadcastTower,
+  FaExclamationTriangle,
+  FaKeyboard,
+} from "react-icons/fa";
 import MorseCodeTable from "./beep/MorseCodeTable";
 import { wpmToDuration } from "./beep/MorseCodeDuration";
 
@@ -53,6 +57,7 @@ function App() {
 
   const [started, setStarted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
   const [volume, setVolume] = useState(80);
 
   const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,6 +294,7 @@ function App() {
       }
 
       myOscillator?.stop(startTime);
+      startTime += durations.dash; // Space between letters
       setTime(startTime);
     },
     [durations, myOscillator, time],
@@ -326,7 +332,17 @@ function App() {
               {(connectionStatus === "Open" && operators.length) || "~"}
             </p>
           </div>
-          <SettingsButton onClick={() => setShowSettings(!showSettings)} />
+          <div className="flex items-stretch gap-2">
+            {started && (
+              <button
+                onClick={() => setShowKeys(!showKeys)}
+                className="flex aspect-square min-w-[2.5rem] items-center justify-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600"
+              >
+                <FaKeyboard />
+              </button>
+            )}
+            <SettingsButton onClick={() => setShowSettings(!showSettings)} />
+          </div>
         </div>
         <div className="flex flex-col items-center justify-center flex-grow my-4">
           {!started && !showSettings && (
@@ -358,10 +374,14 @@ function App() {
               {!focused && <Hint>use mouse</Hint>}
               {focused && <Hint>use mouse or spacebar space</Hint>}
 
-              <div className="h-16" />
-              <MorseCodeTable
-                onClick={(character) => handleCode(character.code)}
-              ></MorseCodeTable>
+              {showKeys && (
+                <>
+                  <div className="h-16" />
+                  <MorseCodeTable
+                    onClick={(character) => handleCode(character.code)}
+                  />
+                </>
+              )}
             </>
           )}
           {showSettings && (
