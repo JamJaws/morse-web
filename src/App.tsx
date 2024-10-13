@@ -20,6 +20,7 @@ import MorseCodeTable from "./beep/MorseCodeTable";
 import MorseCodeInput from "./beep/MorseCodeInput";
 import { convertToCode } from "./beep/MorseCodeConverter";
 import { parseMorseCode } from "./beep/MorseCodeParser";
+import Warning from "./components/Warning";
 
 const TARGET_DELAY = 200;
 
@@ -374,10 +375,7 @@ function App() {
                 <FaBroadcastTower />
                 <span>Join</span>
               </button>
-              <div className="flex items-center text-yellow-400 text-sm">
-                <FaExclamationTriangle className="mr-1" />
-                <span>You may hear tones when pressing the button</span>
-              </div>
+              <Warning text="You may hear tones when pressing the button" />
             </div>
           )}
           {started && !showSettings && (

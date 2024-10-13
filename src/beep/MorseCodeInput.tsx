@@ -1,10 +1,30 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { FaPaperPlane } from "react-icons/fa";
+import Warning from "../components/Warning";
+import { morseCodeCharacters } from "./MorseCodeCharacters";
 
 const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
   onSend,
 }) => {
   const [message, setMessage] = useState("");
+
+  const [unknownCharacters, setUnknownCharacters] = useState<string>("");
+
+  useEffect(() => {
+    const unknownChars = new Set(
+      message
+        .split("")
+        .filter((char) => char !== " ")
+        .filter(
+          (char) =>
+            !morseCodeCharacters.some(
+              (morseCodeCharacter) =>
+                morseCodeCharacter.letter === char.toUpperCase(),
+            ),
+        ),
+    );
+    setUnknownCharacters(Array.from(unknownChars).join(""));
+  }, [message]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(event.target.value);
@@ -46,6 +66,9 @@ const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
           <FaPaperPlane />
         </button>
       </div>
+      {unknownCharacters.length > 0 && (
+        <Warning text={`Unknown characters: ${unknownCharacters}`} />
+      )}
     </div>
   );
 };
