@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import * as Tone from "tone";
-import "./App.css";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled"; // TODO delete emotion
@@ -444,8 +443,8 @@ function App() {
                   onChange={handleFrequencyChange}
                   onMouseUp={() => myOscillator?.start().stop("+0.2")}
                 />
+                <span className="self-center">{myFrequency}</span>
               </div>
-              <span className="self-center">{myFrequency}</span>
               <div className="flex flex-col">
                 <label htmlFor="wpm">WPM</label>
                 <input
