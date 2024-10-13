@@ -18,9 +18,9 @@ import {
   FaKeyboard,
 } from "react-icons/fa";
 import MorseCodeTable from "./beep/MorseCodeTable";
-import { wpmToDuration } from "./beep/MorseCodeDuration";
 import MorseCodeInput from "./beep/MorseCodeInput";
-import { convertSpaces, convertToCode } from "./beep/MorseCodeConverter";
+import { convertToCode } from "./beep/MorseCodeConverter";
+import { parseMorseCode } from "./beep/MorseCodeParser";
 
 const TARGET_DELAY = 200;
 
@@ -30,6 +30,7 @@ enum MessageType {
   STOP = "STOP",
   OPERATORS = "OPERATORS",
   FREQUENCY = "FREQUENCY",
+  MESSAGE = "MESSAGE",
 }
 
 type Message = {
@@ -83,6 +84,10 @@ function App() {
   const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
     new Map(),
   );
+  const [operatorTimes, setOperatorTimes] = useState<{ [key: string]: number }>(
+    {},
+  );
+
   const [time, setTime] = useState(Tone.now());
 
   useEffect(() => {
@@ -156,6 +161,35 @@ function App() {
     [diffs],
   );
 
+  const playMorseCode = useCallback(
+    (operatorId: string, code: string, wpm: number) => {
+      const startTime = Math.max(Tone.now(), operatorTimes[operatorId] ?? 0);
+      const beeps = parseMorseCode(startTime, code, wpm);
+
+      for (const beep of beeps.beeps) {
+        oscillators?.get(operatorId)?.start(beep.start)?.stop(beep.stop);
+      }
+
+      setOperatorTimes((prevState) => ({
+        ...prevState,
+        [operatorId]: startTime + beeps.duration,
+      }));
+    },
+    [oscillators, operatorTimes],
+  );
+
+  const playMyMorseCode = useCallback(
+    (code: string) => {
+      const startTime = Math.max(Tone.now(), time);
+      const beeps = parseMorseCode(startTime, code, 20);
+      for (const beep of beeps.beeps) {
+        myOscillator?.start(beep.start)?.stop(beep.stop);
+      }
+      setTime(startTime + beeps.duration);
+    },
+    [myOscillator, time],
+  );
+
   const handleMessage = useCallback(
     (message: Message) => {
       if (message.type === MessageType.START) {
@@ -187,9 +221,11 @@ function App() {
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
         setOperators(message.operators);
+      } else if (message.type === MessageType.MESSAGE) {
+        playMorseCode(message.operatorId, message.message, message.wpm);
       }
     },
-    [diffs, oscillators, getDelayOffsetDiff],
+    [oscillators, diffs, getDelayOffsetDiff, playMorseCode],
   );
 
   const startAudio = useCallback(async () => {
@@ -277,42 +313,12 @@ function App() {
   );
 
   const wpm = 20;
-  const durations = useMemo(() => wpmToDuration(wpm), [wpm]);
 
-  const handleCode = useCallback(
-    (code: string) => {
-      console.log("handle code: ", code);
-
-      let startTime = Math.max(Tone.now(), time);
-      let lastChar = "";
-      for (const char of code) {
-        if (lastChar === "." || lastChar === "-") {
-          startTime += durations.dot; // Space between parts of the same letter
-        }
-        switch (char) {
-          case ".":
-            myOscillator?.start(startTime).stop(startTime + durations.dot);
-            startTime += durations.dot;
-            break;
-          case "-":
-            myOscillator?.start(startTime).stop(startTime + durations.dash);
-            startTime += durations.dash;
-            break;
-          case " ":
-            startTime += durations.dash;
-            break;
-          case "/":
-            startTime += durations.space;
-            break;
-        }
-        lastChar = char;
-      }
-
-      myOscillator?.stop(startTime);
-      startTime += durations.dash; // Space between letters
-      setTime(startTime);
+  const sendMorseCode = useCallback(
+    (message: string, wpm: number) => {
+      send(MessageType.MESSAGE, { message, wpm });
     },
-    [durations, myOscillator, time],
+    [send],
   );
 
   const connectionColor = {
@@ -395,7 +401,7 @@ function App() {
                 <>
                   <div className="h-16" />
                   <MorseCodeTable
-                    onClick={(character) => handleCode(character.code)}
+                    onClick={(character) => playMyMorseCode(character.code)}
                   />
                 </>
               )}
@@ -404,9 +410,8 @@ function App() {
                   <div className="h-16" />
                   <MorseCodeInput
                     onSend={(message) => {
-                      console.log("sending message: ", message);
-                      console.log("beep: ", convertToCode(message));
-                      handleCode(convertSpaces(convertToCode(message)));
+                      playMyMorseCode(message);
+                      sendMorseCode(convertToCode(message), wpm);
                     }}
                   ></MorseCodeInput>
                 </>
