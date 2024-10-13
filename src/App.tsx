@@ -62,6 +62,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [volume, setVolume] = useState(80);
+  const [wpm, setWpm] = useState(20);
 
   const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(event.target.value));
@@ -181,13 +182,13 @@ function App() {
   const playMyMorseCode = useCallback(
     (code: string) => {
       const startTime = Math.max(Tone.now(), time);
-      const beeps = parseMorseCode(startTime, code, 20);
+      const beeps = parseMorseCode(startTime, code, wpm);
       for (const beep of beeps.beeps) {
         myOscillator?.start(beep.start)?.stop(beep.stop);
       }
       setTime(startTime + beeps.duration);
     },
-    [myOscillator, time],
+    [myOscillator, time, wpm],
   );
 
   const handleMessage = useCallback(
@@ -312,8 +313,6 @@ function App() {
     [stop],
   );
 
-  const wpm = 20;
-
   const sendMorseCode = useCallback(
     (code: string, wpm: number) => {
       send(MessageType.CODE, { code, wpm });
@@ -409,9 +408,10 @@ function App() {
                 <>
                   <div className="h-16" />
                   <MorseCodeInput
-                    onSend={(code) => {
+                    onSend={(message: string) => {
+                      const code = convertToCode(message);
                       playMyMorseCode(code);
-                      sendMorseCode(convertToCode(code), wpm);
+                      sendMorseCode(code, wpm);
                     }}
                   ></MorseCodeInput>
                 </>
@@ -419,32 +419,45 @@ function App() {
             </>
           )}
           {showSettings && (
-            <div className="flex flex-col items-center justify-center">
-              <p>Settings</p>
-              <label htmlFor="volume" className="text-white">
-                Volume: {volume}
-              </label>
-              <input
-                id="volume"
-                type="range"
-                min="0"
-                max="100"
-                value={volume}
-                onChange={handleVolumeChange}
-                onMouseUp={() => myOscillator?.start().stop("+0.2")}
-              />
-              <label htmlFor="frequency" className="text-white">
-                Frequency: {myFrequency}
-              </label>
-              <input
-                id="frequency"
-                type="range"
-                min="600"
-                max="1000"
-                value={myFrequency}
-                onChange={handleFrequencyChange}
-                onMouseUp={() => myOscillator?.start().stop("+0.2")}
-              />
+            <div className="w-2/3 sm:w-1/2 md:w-1/3 flex flex-col gap-2">
+              <div className="flex flex-col">
+                <label htmlFor="volume">Volume</label>
+                <input
+                  id="volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  onMouseUp={() => myOscillator?.start().stop("+0.2")}
+                />
+                <span className="self-center">{volume}</span>
+              </div>
+              <div className="flex flex-col">
+                <label htmlFor="frequency">Frequency</label>
+                <input
+                  id="frequency"
+                  type="range"
+                  min="400"
+                  max="1000"
+                  value={myFrequency}
+                  onChange={handleFrequencyChange}
+                  onMouseUp={() => myOscillator?.start().stop("+0.2")}
+                />
+              </div>
+              <span className="self-center">{myFrequency}</span>
+              <div className="flex flex-col">
+                <label htmlFor="wpm">WPM</label>
+                <input
+                  id="wpm"
+                  type="range"
+                  min="4"
+                  max="40"
+                  value={wpm}
+                  onChange={(e) => setWpm(Number(e.target.value))}
+                />
+                <span className="self-center">{wpm}</span>
+              </div>
             </div>
           )}
         </div>
