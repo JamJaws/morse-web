@@ -30,7 +30,7 @@ enum MessageType {
   STOP = "STOP",
   OPERATORS = "OPERATORS",
   FREQUENCY = "FREQUENCY",
-  MESSAGE = "MESSAGE",
+  CODE = "CODE",
 }
 
 type Message = {
@@ -221,8 +221,8 @@ function App() {
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
         setOperators(message.operators);
-      } else if (message.type === MessageType.MESSAGE) {
-        playMorseCode(message.operatorId, message.message, message.wpm);
+      } else if (message.type === MessageType.CODE) {
+        playMorseCode(message.operatorId, message.code, message.wpm);
       }
     },
     [oscillators, diffs, getDelayOffsetDiff, playMorseCode],
@@ -315,8 +315,8 @@ function App() {
   const wpm = 20;
 
   const sendMorseCode = useCallback(
-    (message: string, wpm: number) => {
-      send(MessageType.MESSAGE, { message, wpm });
+    (code: string, wpm: number) => {
+      send(MessageType.CODE, { code, wpm });
     },
     [send],
   );
@@ -409,9 +409,9 @@ function App() {
                 <>
                   <div className="h-16" />
                   <MorseCodeInput
-                    onSend={(message) => {
-                      playMyMorseCode(message);
-                      sendMorseCode(convertToCode(message), wpm);
+                    onSend={(code) => {
+                      playMyMorseCode(code);
+                      sendMorseCode(convertToCode(code), wpm);
                     }}
                   ></MorseCodeInput>
                 </>
