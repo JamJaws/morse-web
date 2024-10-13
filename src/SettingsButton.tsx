@@ -8,11 +8,11 @@ interface SettingsButtonProps {
 const SettingsButton: React.FC<SettingsButtonProps> = ({ onClick }) => {
   return (
     <button
-      className="flex items-center p-2 rounded hover:bg-gray-600"
+      className="flex items-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600"
       onClick={onClick}
     >
-      <FaCog className="text-gray-400 spin-45" />
-      <span className="ml-2">Settings</span>
+      <FaCog />
+      <span>Settings</span>
     </button>
   );
 };

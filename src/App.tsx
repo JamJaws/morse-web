@@ -12,7 +12,15 @@ import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
-import { FaBroadcastTower, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaBroadcastTower,
+  FaExclamationTriangle,
+  FaKeyboard,
+} from "react-icons/fa";
+import MorseCodeTable from "./beep/MorseCodeTable";
+import MorseCodeInput from "./beep/MorseCodeInput";
+import { convertToCode } from "./beep/MorseCodeConverter";
+import { parseMorseCode } from "./beep/MorseCodeParser";
 
 const TARGET_DELAY = 200;
 
@@ -22,6 +30,7 @@ enum MessageType {
   STOP = "STOP",
   OPERATORS = "OPERATORS",
   FREQUENCY = "FREQUENCY",
+  CODE = "CODE",
 }
 
 type Message = {
@@ -51,17 +60,20 @@ function App() {
 
   const [started, setStarted] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
   const [volume, setVolume] = useState(80);
 
   const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(Number(event.target.value));
   };
 
-  const inputReference = useRef<any>(null);
+  const inputReference = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    inputReference?.current?.focus();
-  }, []);
+    if (started) {
+      inputReference?.current?.focus();
+    }
+  }, [started]);
 
   const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
@@ -72,6 +84,11 @@ function App() {
   const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
     new Map(),
   );
+  const [operatorTimes, setOperatorTimes] = useState<{ [key: string]: number }>(
+    {},
+  );
+
+  const [time, setTime] = useState(Tone.now());
 
   useEffect(() => {
     setOscillators((prevOscillators) => {
@@ -144,6 +161,35 @@ function App() {
     [diffs],
   );
 
+  const playMorseCode = useCallback(
+    (operatorId: string, code: string, wpm: number) => {
+      const startTime = Math.max(Tone.now(), operatorTimes[operatorId] ?? 0);
+      const beeps = parseMorseCode(startTime, code, wpm);
+
+      for (const beep of beeps.beeps) {
+        oscillators?.get(operatorId)?.start(beep.start)?.stop(beep.stop);
+      }
+
+      setOperatorTimes((prevState) => ({
+        ...prevState,
+        [operatorId]: startTime + beeps.duration,
+      }));
+    },
+    [oscillators, operatorTimes],
+  );
+
+  const playMyMorseCode = useCallback(
+    (code: string) => {
+      const startTime = Math.max(Tone.now(), time);
+      const beeps = parseMorseCode(startTime, code, 20);
+      for (const beep of beeps.beeps) {
+        myOscillator?.start(beep.start)?.stop(beep.stop);
+      }
+      setTime(startTime + beeps.duration);
+    },
+    [myOscillator, time],
+  );
+
   const handleMessage = useCallback(
     (message: Message) => {
       if (message.type === MessageType.START) {
@@ -175,9 +221,11 @@ function App() {
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
         setOperators(message.operators);
+      } else if (message.type === MessageType.CODE) {
+        playMorseCode(message.operatorId, message.code, message.wpm);
       }
     },
-    [diffs, oscillators, getDelayOffsetDiff],
+    [oscillators, diffs, getDelayOffsetDiff, playMorseCode],
   );
 
   const startAudio = useCallback(async () => {
@@ -237,7 +285,13 @@ function App() {
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === " " && !event.repeat) {
+      if (
+        event.key === " " &&
+        !event.repeat &&
+        event.target instanceof HTMLElement &&
+        event.target.tagName !== "INPUT" &&
+        event.target.tagName !== "BUTTON"
+      ) {
         start(event);
       }
     },
@@ -246,11 +300,25 @@ function App() {
 
   const onKeyUp = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === " ") {
+      if (
+        event.key === " " &&
+        event.target instanceof HTMLElement &&
+        event.target.tagName !== "INPUT" &&
+        event.target.tagName !== "BUTTON"
+      ) {
         stop(event);
       }
     },
     [stop],
+  );
+
+  const wpm = 20;
+
+  const sendMorseCode = useCallback(
+    (code: string, wpm: number) => {
+      send(MessageType.CODE, { code, wpm });
+    },
+    [send],
   );
 
   const connectionColor = {
@@ -263,10 +331,11 @@ function App() {
 
   const debug =
     searchParams.get("debug") === "" || searchParams.get("debug") === "true";
+  const tx = searchParams.get("tx") === "" || searchParams.get("tx") === "true";
 
   return (
     <Main
-      className="app"
+      className="bg-slate-800 text-white outline-none"
       ref={inputReference}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
@@ -274,7 +343,7 @@ function App() {
       onFocus={onFocus}
       onBlur={onBlur}
     >
-      <div className="h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <div className="flex items-center gap-4">
             <span
@@ -285,7 +354,17 @@ function App() {
               {(connectionStatus === "Open" && operators.length) || "~"}
             </p>
           </div>
-          <SettingsButton onClick={() => setShowSettings(!showSettings)} />
+          <div className="flex items-stretch gap-2">
+            {started && (
+              <button
+                onClick={() => setShowKeys(!showKeys)}
+                className="flex aspect-square min-w-[2.5rem] items-center justify-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600"
+              >
+                <FaKeyboard />
+              </button>
+            )}
+            <SettingsButton onClick={() => setShowSettings(!showSettings)} />
+          </div>
         </div>
         <div className="flex flex-col items-center justify-center flex-grow my-4">
           {!started && !showSettings && (
@@ -305,17 +384,38 @@ function App() {
           )}
           {started && !showSettings && (
             <>
-              <div
-                className="beep"
+              <button
+                className="text-[calc(12px+2vmin)] bg-slate-700 aspect-square min-w-[80vmin] sm:min-w-[65vmin] md:min-w-[50vmin] rounded-3xl gap-3 transition duration-300 ease-in-out hover:bg-slate-600 hover:shadow-lg"
                 onMouseDown={start}
                 onMouseUp={stop}
+                onMouseLeave={stop}
                 onTouchStart={start}
                 onTouchEnd={stop}
               >
                 <p>beep beep beep</p>
-              </div>
+              </button>
               {!focused && <Hint>use mouse</Hint>}
               {focused && <Hint>use mouse or spacebar space</Hint>}
+
+              {showKeys && (
+                <>
+                  <div className="h-16" />
+                  <MorseCodeTable
+                    onClick={(character) => playMyMorseCode(character.code)}
+                  />
+                </>
+              )}
+              {tx && (
+                <>
+                  <div className="h-16" />
+                  <MorseCodeInput
+                    onSend={(code) => {
+                      playMyMorseCode(code);
+                      sendMorseCode(convertToCode(code), wpm);
+                    }}
+                  ></MorseCodeInput>
+                </>
+              )}
             </>
           )}
           {showSettings && (
