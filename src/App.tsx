@@ -11,11 +11,7 @@ import { useSearchParams } from "react-router-dom";
 import styled from "@emotion/styled"; // TODO delete emotion
 import SettingsButton from "./SettingsButton";
 import debounce from "debounce";
-import {
-  FaBroadcastTower,
-  FaExclamationTriangle,
-  FaKeyboard,
-} from "react-icons/fa";
+import { FaBroadcastTower, FaKeyboard } from "react-icons/fa";
 import MorseCodeTable from "./beep/MorseCodeTable";
 import MorseCodeInput from "./beep/MorseCodeInput";
 import { convertToCode } from "./beep/MorseCodeConverter";
