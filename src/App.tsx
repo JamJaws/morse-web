@@ -19,6 +19,8 @@ import {
 } from "react-icons/fa";
 import MorseCodeTable from "./beep/MorseCodeTable";
 import { wpmToDuration } from "./beep/MorseCodeDuration";
+import MorseCodeInput from "./beep/MorseCodeInput";
+import { convertSpaces, convertToCode } from "./beep/MorseCodeConverter";
 
 const TARGET_DELAY = 200;
 
@@ -64,11 +66,13 @@ function App() {
     setVolume(Number(event.target.value));
   };
 
-  const inputReference = useRef<any>(null);
+  const inputReference = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    inputReference?.current?.focus();
-  }, []);
+    if (started) {
+      inputReference?.current?.focus();
+    }
+  }, [started]);
 
   const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
@@ -245,7 +249,13 @@ function App() {
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === " " && !event.repeat) {
+      if (
+        event.key === " " &&
+        !event.repeat &&
+        event.target instanceof HTMLElement &&
+        event.target.tagName !== "INPUT" &&
+        event.target.tagName !== "BUTTON"
+      ) {
         start(event);
       }
     },
@@ -254,7 +264,12 @@ function App() {
 
   const onKeyUp = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === " ") {
+      if (
+        event.key === " " &&
+        event.target instanceof HTMLElement &&
+        event.target.tagName !== "INPUT" &&
+        event.target.tagName !== "BUTTON"
+      ) {
         stop(event);
       }
     },
@@ -310,6 +325,7 @@ function App() {
 
   const debug =
     searchParams.get("debug") === "" || searchParams.get("debug") === "true";
+  const tx = searchParams.get("tx") === "" || searchParams.get("tx") === "true";
 
   return (
     <Main
@@ -366,6 +382,7 @@ function App() {
                 className="text-[calc(12px+2vmin)] bg-slate-700 aspect-square min-w-[80vmin] sm:min-w-[65vmin] md:min-w-[50vmin] rounded-3xl gap-3 transition duration-300 ease-in-out hover:bg-slate-600 hover:shadow-lg"
                 onMouseDown={start}
                 onMouseUp={stop}
+                onMouseLeave={stop}
                 onTouchStart={start}
                 onTouchEnd={stop}
               >
@@ -380,6 +397,18 @@ function App() {
                   <MorseCodeTable
                     onClick={(character) => handleCode(character.code)}
                   />
+                </>
+              )}
+              {tx && (
+                <>
+                  <div className="h-16" />
+                  <MorseCodeInput
+                    onSend={(message) => {
+                      console.log("sending message: ", message);
+                      console.log("beep: ", convertToCode(message));
+                      handleCode(convertSpaces(convertToCode(message)));
+                    }}
+                  ></MorseCodeInput>
                 </>
               )}
             </>
