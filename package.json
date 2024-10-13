@@ -19,7 +19,7 @@
     "react-router-dom": "^6.26.2",
     "react-scripts": "5.0.1",
     "react-use-websocket": "4.7.0",
-    "tone": "^14.7.77",
+    "tone": "^15.0.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
