@@ -27,6 +27,8 @@ enum MessageType {
   OPERATORS = "OPERATORS",
   FREQUENCY = "FREQUENCY",
   CODE = "CODE",
+  PING = "PING",
+  PONG = "PONG",
 }
 
 type Message = {
@@ -121,6 +123,9 @@ function App() {
 
   const [myOperatorId, setMyOperatorId] = useState<string>();
   const [myFrequency, setMyFrequency] = useState<number>(800);
+  const [latency, setLatency] = useState<number | null>(null);
+  const pingTime = useRef<number | null>(null);
+  const [displayLatency, setDisplayLatency] = useState(false);
 
   const myOscillator = useMemo(() => {
     if (started) {
@@ -146,6 +151,31 @@ function App() {
         Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
     },
   );
+
+  const send = useCallback(
+    (
+      command: MessageType,
+      properties: { [key: string]: string | number } = {},
+    ) => sendMessage(JSON.stringify({ type: command, ...properties })),
+    [sendMessage],
+  );
+
+  useEffect(() => {
+    const startPing = () => {
+      pingTime.current = Date.now();
+      send(MessageType.PING);
+    };
+
+    let interval: NodeJS.Timeout | undefined;
+    if (readyState === ReadyState.OPEN && displayLatency) {
+      startPing();
+      interval = setInterval(startPing, 1_000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [readyState, send, displayLatency]);
 
   const [diffs, setDiffs] = useState<Map<string, number>>(new Map());
 
@@ -220,6 +250,11 @@ function App() {
         setOperators(message.operators);
       } else if (message.type === MessageType.CODE) {
         playMorseCode(message.operatorId, message.code, message.wpm);
+      } else if (message.type === MessageType.PONG) {
+        if (typeof pingTime.current === "number") {
+          const pongTime = Date.now();
+          setLatency(pongTime - pingTime.current);
+        }
       }
     },
     [oscillators, diffs, getDelayOffsetDiff, playMorseCode],
@@ -237,14 +272,6 @@ function App() {
     [ReadyState.CLOSED]: "Closed",
     [ReadyState.UNINSTANTIATED]: "Uninstantiated",
   }[readyState];
-
-  const send = useCallback(
-    (
-      command: MessageType,
-      properties: { [key: string]: string | number } = {},
-    ) => sendMessage(JSON.stringify({ type: command, ...properties })),
-    [sendMessage],
-  );
 
   const debouncedSendFrequency = useMemo(
     () =>
@@ -340,11 +367,25 @@ function App() {
     >
       <div className="min-h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
-          <div className="flex items-center gap-4">
-            <span
-              className="w-4 h-4 rounded-full"
-              style={{ backgroundColor: connectionColor }}
-            ></span>
+          <div className="flex items-center justify-center gap-4">
+            <div
+              className="relative flex items-center group"
+              onMouseEnter={() => setDisplayLatency(true)}
+              onMouseLeave={() => setDisplayLatency(false)}
+            >
+              <span
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: connectionColor }}
+              />
+              {readyState === ReadyState.OPEN && (
+                <div
+                  role="tooltip"
+                  className="absolute z-10 invisible inline-block px-3 py-1.5 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-gray-700 transform top-full mt-2 whitespace-nowrap"
+                >
+                  {latency} ms
+                </div>
+              )}
+            </div>
             <p className="text-gray-300">
               {(connectionStatus === "Open" && operators.length) || "~"}
             </p>
