@@ -125,6 +125,7 @@ function App() {
   const [myFrequency, setMyFrequency] = useState<number>(800);
   const [latency, setLatency] = useState<number | null>(null);
   const pingTime = useRef<number | null>(null);
+  const [displayLatency, setDisplayLatency] = useState(false);
 
   const myOscillator = useMemo(() => {
     if (started) {
@@ -167,15 +168,15 @@ function App() {
     };
 
     let interval: NodeJS.Timeout | undefined;
-    if (readyState === ReadyState.OPEN) {
+    if (readyState === ReadyState.OPEN && displayLatency) {
       startPing();
-      interval = setInterval(startPing, 30_000);
+      interval = setInterval(startPing, 1_000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [readyState, send]);
+  }, [readyState, send, displayLatency]);
 
   const [diffs, setDiffs] = useState<Map<string, number>>(new Map());
 
@@ -368,7 +369,11 @@ function App() {
       <div className="min-h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <div className="flex items-center justify-center gap-4">
-            <div className="relative flex items-center group">
+            <div
+              className="relative flex items-center group"
+              onMouseEnter={() => setDisplayLatency(true)}
+              onMouseLeave={() => setDisplayLatency(false)}
+            >
               <span
                 className="w-4 h-4 rounded-full"
                 style={{ backgroundColor: connectionColor }}
