@@ -145,7 +145,6 @@ function App() {
       },
       onOpen: () => {
         // TODO send frequency
-        // send(MessageType.PING);
       },
       shouldReconnect: () => true,
       reconnectInterval: (attemptNumber) =>
