@@ -4,36 +4,41 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from "react";
-import * as Tone from "tone";
-import useWebSocket, { ReadyState } from "react-use-websocket";
-import { useSearchParams } from "react-router-dom";
-import styled from "@emotion/styled"; // TODO delete emotion
-import SettingsButton from "./SettingsButton";
-import debounce from "debounce";
-import { FaBroadcastTower, FaKeyboard } from "react-icons/fa";
-import MorseCodeTable from "./beep/MorseCodeTable";
-import MorseCodeInput from "./beep/MorseCodeInput";
-import { convertToCode } from "./beep/MorseCodeConverter";
-import { parseMorseCode } from "./beep/MorseCodeParser";
-import Warning from "./components/Warning";
+} from 'react';
+import * as Tone from 'tone';
+import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { useSearchParams } from 'react-router-dom';
+import styled from '@emotion/styled'; // TODO delete emotion
+import SettingsButton from './SettingsButton';
+import debounce from 'debounce';
+import { FaBroadcastTower, FaKeyboard } from 'react-icons/fa';
+import MorseCodeTable from './beep/MorseCodeTable';
+import MorseCodeInput from './beep/MorseCodeInput';
+import { convertToCode } from './beep/MorseCodeConverter';
+import { parseMorseCode } from './beep/MorseCodeParser';
+import Warning from './components/Warning';
 
 const TARGET_DELAY = 200;
 
 enum MessageType {
-  HELLO = "HELLO",
-  START = "START",
-  STOP = "STOP",
-  OPERATORS = "OPERATORS",
-  FREQUENCY = "FREQUENCY",
-  CODE = "CODE",
-  PING = "PING",
-  PONG = "PONG",
+  HELLO = 'HELLO',
+  START = 'START',
+  STOP = 'STOP',
+  OPERATORS = 'OPERATORS',
+  FREQUENCY = 'FREQUENCY',
+  CODE = 'CODE',
+  PING = 'PING',
+  PONG = 'PONG',
 }
 
 type Message = {
   type: MessageType;
-  [key: string]: any;
+  operatorId?: string;
+  frequency?: number;
+  operators?: Operator[];
+  code?: string;
+  wpm?: number;
+  timestamp?: number;
 };
 
 interface Operator {
@@ -80,9 +85,8 @@ function App() {
 
   const [operators, setOperators] = useState<Operator[]>([]);
 
-  const [oscillators, setOscillators] = useState<Map<string, Tone.Oscillator>>(
-    new Map(),
-  );
+  const oscillatorsRef = useRef<Map<string, Tone.Oscillator>>(new Map());
+  const [remoteOscillatorIds, setRemoteOscillatorIds] = useState<string[]>([]);
   const [operatorTimes, setOperatorTimes] = useState<{ [key: string]: number }>(
     {},
   );
@@ -90,35 +94,34 @@ function App() {
   const [time, setTime] = useState(Tone.now());
 
   useEffect(() => {
-    setOscillators((prevOscillators) => {
-      const newOscillators = new Map(prevOscillators);
-      if (started) {
-        operators.forEach((operator) => {
-          if (!newOscillators.has(operator.id)) {
-            const oscillator = new Tone.Oscillator({
-              frequency: operator.frequency,
-              type: "sine",
-              volume: Tone.gainToDb(volume / 100),
-            }).toDestination();
-            newOscillators.set(operator.id, oscillator);
-          } else {
-            newOscillators.get(operator.id)?.set({
-              frequency: operator.frequency,
-              volume: Tone.gainToDb(volume / 100),
-            });
-          }
+    const oscillators = oscillatorsRef.current;
+    if (started) {
+      operators.forEach(operator => {
+        if (!oscillators.has(operator.id)) {
+          const oscillator = new Tone.Oscillator({
+            frequency: operator.frequency,
+            type: 'sine',
+            volume: Tone.gainToDb(volume / 100),
+          }).toDestination();
+          oscillators.set(operator.id, oscillator);
+        } else {
+          oscillators.get(operator.id)?.set({
+            frequency: operator.frequency,
+            volume: Tone.gainToDb(volume / 100),
+          });
+        }
+      });
+
+      Array.from(oscillators.keys())
+        .filter(key => !operators.some(operator => operator.id === key))
+        .forEach(key => {
+          oscillators.get(key)?.stop();
+          oscillators.delete(key);
+          // TODO maybe delete diffs here
         });
 
-        Array.from(newOscillators.keys())
-          .filter((key) => !operators.some((operator) => operator.id === key))
-          .forEach((key) => {
-            newOscillators.get(key)?.stop();
-            newOscillators.delete(key);
-            // TODO maybe delete diffs here
-          });
-      }
-      return newOscillators;
-    });
+      setRemoteOscillatorIds(Array.from(oscillators.keys()));
+    }
   }, [started, operators, volume]);
 
   const [myOperatorId, setMyOperatorId] = useState<string>();
@@ -131,7 +134,7 @@ function App() {
     if (started) {
       return new Tone.Oscillator({
         frequency: myFrequency,
-        type: "sine",
+        type: 'sine',
         volume: Tone.gainToDb(volume / 100),
       }).toDestination();
     }
@@ -140,14 +143,14 @@ function App() {
   const { sendMessage, lastMessage, readyState } = useWebSocket(
     `wss://${window.location.hostname}/beep`,
     {
-      onMessage: async (event) => {
+      onMessage: async event => {
         handleMessage(JSON.parse(event.data));
       },
       onOpen: () => {
         // TODO send frequency
       },
       shouldReconnect: () => true,
-      reconnectInterval: (attemptNumber) =>
+      reconnectInterval: attemptNumber =>
         Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
     },
   );
@@ -194,15 +197,18 @@ function App() {
       const beeps = parseMorseCode(startTime, code, wpm);
 
       for (const beep of beeps.beeps) {
-        oscillators?.get(operatorId)?.start(beep.start)?.stop(beep.stop);
+        oscillatorsRef.current
+          .get(operatorId)
+          ?.start(beep.start)
+          ?.stop(beep.stop);
       }
 
-      setOperatorTimes((prevState) => ({
+      setOperatorTimes(prevState => ({
         ...prevState,
         [operatorId]: startTime + beeps.duration,
       }));
     },
-    [oscillators, operatorTimes],
+    [operatorTimes],
   );
 
   const playMyMorseCode = useCallback(
@@ -220,44 +226,55 @@ function App() {
   const handleMessage = useCallback(
     (message: Message) => {
       if (message.type === MessageType.START) {
-        const oscillator = oscillators.get(message.operatorId);
+        if (!message.operatorId || typeof message.timestamp !== 'number') {
+          return;
+        }
 
-        if (diffs.has(message.operatorId)) {
-          const time = getDelayOffsetDiff(
-            message.operatorId,
-            message.timestamp,
-          );
+        const oscillator = oscillatorsRef.current.get(message.operatorId);
+
+        const { operatorId, timestamp } = message;
+        if (diffs.has(operatorId)) {
+          const time = getDelayOffsetDiff(operatorId, timestamp);
           oscillator?.stop(time);
           oscillator?.start(time);
         } else {
-          setDiffs((prevDiffs) => {
-            return new Map(prevDiffs).set(
-              message.operatorId,
-              Date.now() - message.timestamp,
-            );
+          setDiffs(prevDiffs => {
+            return new Map(prevDiffs).set(operatorId, Date.now() - timestamp);
           });
           oscillator?.stop();
           oscillator?.start(`+${millisecondsToSeconds(TARGET_DELAY)}`);
         }
       } else if (message.type === MessageType.STOP) {
-        const oscillator = oscillators.get(message.operatorId);
+        if (!message.operatorId || typeof message.timestamp !== 'number') {
+          return;
+        }
+        const oscillator = oscillatorsRef.current.get(message.operatorId);
         const time = getDelayOffsetDiff(message.operatorId, message.timestamp);
         oscillator?.stop(time);
       } else if (message.type === MessageType.HELLO) {
+        if (!message.operatorId || typeof message.frequency !== 'number') {
+          return;
+        }
         setMyOperatorId(message.operatorId);
         setMyFrequency(message.frequency);
       } else if (message.type === MessageType.OPERATORS) {
+        if (!message.operators) {
+          return;
+        }
         setOperators(message.operators);
       } else if (message.type === MessageType.CODE) {
+        if (!message.operatorId || !message.code || !message.wpm) {
+          return;
+        }
         playMorseCode(message.operatorId, message.code, message.wpm);
       } else if (message.type === MessageType.PONG) {
-        if (typeof pingTime.current === "number") {
+        if (typeof pingTime.current === 'number') {
           const pongTime = Date.now();
           setLatency(pongTime - pingTime.current);
         }
       }
     },
-    [oscillators, diffs, getDelayOffsetDiff, playMorseCode],
+    [diffs, getDelayOffsetDiff, playMorseCode],
   );
 
   const startAudio = useCallback(async () => {
@@ -266,11 +283,11 @@ function App() {
   }, []);
 
   const connectionStatus = {
-    [ReadyState.CONNECTING]: "Connecting",
-    [ReadyState.OPEN]: "Open",
-    [ReadyState.CLOSING]: "Closing",
-    [ReadyState.CLOSED]: "Closed",
-    [ReadyState.UNINSTANTIATED]: "Uninstantiated",
+    [ReadyState.CONNECTING]: 'Connecting',
+    [ReadyState.OPEN]: 'Open',
+    [ReadyState.CLOSING]: 'Closing',
+    [ReadyState.CLOSED]: 'Closed',
+    [ReadyState.UNINSTANTIATED]: 'Uninstantiated',
   }[readyState];
 
   const debouncedSendFrequency = useMemo(
@@ -310,11 +327,11 @@ function App() {
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (
-        event.key === " " &&
+        event.key === ' ' &&
         !event.repeat &&
         event.target instanceof HTMLElement &&
-        event.target.tagName !== "INPUT" &&
-        event.target.tagName !== "BUTTON"
+        event.target.tagName !== 'INPUT' &&
+        event.target.tagName !== 'BUTTON'
       ) {
         start(event);
       }
@@ -325,10 +342,10 @@ function App() {
   const onKeyUp = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (
-        event.key === " " &&
+        event.key === ' ' &&
         event.target instanceof HTMLElement &&
-        event.target.tagName !== "INPUT" &&
-        event.target.tagName !== "BUTTON"
+        event.target.tagName !== 'INPUT' &&
+        event.target.tagName !== 'BUTTON'
       ) {
         stop(event);
       }
@@ -344,16 +361,16 @@ function App() {
   );
 
   const connectionColor = {
-    [ReadyState.CONNECTING]: "yellow",
-    [ReadyState.OPEN]: "green",
-    [ReadyState.CLOSING]: "red",
-    [ReadyState.CLOSED]: "black",
-    [ReadyState.UNINSTANTIATED]: "gray",
+    [ReadyState.CONNECTING]: 'yellow',
+    [ReadyState.OPEN]: 'green',
+    [ReadyState.CLOSING]: 'red',
+    [ReadyState.CLOSED]: 'black',
+    [ReadyState.UNINSTANTIATED]: 'gray',
   }[readyState];
 
   const debug =
-    searchParams.get("debug") === "" || searchParams.get("debug") === "true";
-  const tx = searchParams.get("tx") === "" || searchParams.get("tx") === "true";
+    searchParams.get('debug') === '' || searchParams.get('debug') === 'true';
+  const tx = searchParams.get('tx') === '' || searchParams.get('tx') === 'true';
 
   return (
     <Main
@@ -387,14 +404,14 @@ function App() {
               )}
             </div>
             <p className="text-gray-300">
-              {(connectionStatus === "Open" && operators.length) || "~"}
+              {(connectionStatus === 'Open' && operators.length) || '~'}
             </p>
           </div>
           <div className="flex items-stretch gap-2">
             {started && (
               <button
                 onClick={() => setShowKeys(!showKeys)}
-                className="flex aspect-square min-w-[2.5rem] items-center justify-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600"
+                className="flex aspect-square min-w-10 items-center justify-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600"
               >
                 <FaKeyboard />
               </button>
@@ -402,7 +419,7 @@ function App() {
             <SettingsButton onClick={() => setShowSettings(!showSettings)} />
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center flex-grow my-4">
+        <div className="flex flex-col items-center justify-center grow my-4">
           {!started && !showSettings && (
             <div className="flex flex-col items-center justify-center gap-2">
               <button
@@ -434,7 +451,7 @@ function App() {
                 <>
                   <div className="h-16" />
                   <MorseCodeTable
-                    onClick={(character) => playMyMorseCode(character.code)}
+                    onClick={character => playMyMorseCode(character.code)}
                   />
                 </>
               )}
@@ -463,7 +480,7 @@ function App() {
                   max="100"
                   value={volume}
                   onChange={handleVolumeChange}
-                  onMouseUp={() => myOscillator?.start().stop("+0.2")}
+                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
                 />
                 <span className="self-center">{volume}</span>
               </div>
@@ -476,7 +493,7 @@ function App() {
                   max="1000"
                   value={myFrequency}
                   onChange={handleFrequencyChange}
-                  onMouseUp={() => myOscillator?.start().stop("+0.2")}
+                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
                 />
                 <span className="self-center">{myFrequency}</span>
               </div>
@@ -488,7 +505,7 @@ function App() {
                   min="4"
                   max="40"
                   value={wpm}
-                  onChange={(e) => setWpm(Number(e.target.value))}
+                  onChange={e => setWpm(Number(e.target.value))}
                 />
                 <span className="self-center">{wpm}</span>
               </div>
@@ -501,9 +518,7 @@ function App() {
             <p>{connectionStatus}</p>
             <p>my operator id: {myOperatorId}</p>
             <p>lastMessage: {lastMessage?.data}</p>
-            <p>
-              remote oscillators: {Array.from(oscillators.keys())?.join(", ")}
-            </p>
+            <p>remote oscillators: {remoteOscillatorIds.join(', ')}</p>
           </div>
         )}
       </div>

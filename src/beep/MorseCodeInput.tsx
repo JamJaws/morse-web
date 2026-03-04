@@ -1,29 +1,27 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { FaPaperPlane } from "react-icons/fa";
-import Warning from "../components/Warning";
-import { morseCodeCharacters } from "./MorseCodeCharacters";
+import React, { useState, useCallback, useMemo } from 'react';
+import { FaPaperPlane } from 'react-icons/fa';
+import Warning from '../components/Warning';
+import { morseCodeCharacters } from './MorseCodeCharacters';
 
 const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
   onSend,
 }) => {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
 
-  const [unknownCharacters, setUnknownCharacters] = useState<string>("");
-
-  useEffect(() => {
+  const unknownCharacters = useMemo(() => {
     const unknownChars = new Set(
       message
-        .split("")
-        .filter((char) => char !== " ")
+        .split('')
+        .filter(char => char !== ' ')
         .filter(
-          (char) =>
+          char =>
             !morseCodeCharacters.some(
-              (morseCodeCharacter) =>
+              morseCodeCharacter =>
                 morseCodeCharacter.letter === char.toUpperCase(),
             ),
         ),
     );
-    setUnknownCharacters(Array.from(unknownChars).join(""));
+    return Array.from(unknownChars).join('');
   }, [message]);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,12 +31,12 @@ const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
   const handleSend = useCallback(() => {
     if (message.trim()) {
       onSend(message.trim());
-      setMessage("");
+      setMessage('');
     }
   }, [message, onSend]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+    if (event.key === 'Enter') {
       event.preventDefault();
       handleSend();
     }
