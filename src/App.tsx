@@ -95,6 +95,14 @@ function App() {
 
   useEffect(() => {
     const oscillators = oscillatorsRef.current;
+    return () => {
+      oscillators.forEach(oscillator => oscillator.dispose());
+      oscillators.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const oscillators = oscillatorsRef.current;
     if (started) {
       operators.forEach(operator => {
         if (!oscillators.has(operator.id)) {
@@ -115,7 +123,7 @@ function App() {
       Array.from(oscillators.keys())
         .filter(key => !operators.some(operator => operator.id === key))
         .forEach(key => {
-          oscillators.get(key)?.stop();
+          oscillators.get(key)?.dispose();
           oscillators.delete(key);
           // TODO maybe delete diffs here
         });
@@ -130,14 +138,26 @@ function App() {
   const pingTime = useRef<number | null>(null);
   const [displayLatency, setDisplayLatency] = useState(false);
 
-  const myOscillator = useMemo(() => {
-    if (started) {
-      return new Tone.Oscillator({
-        frequency: myFrequency,
-        type: 'sine',
-        volume: Tone.gainToDb(volume / 100),
-      }).toDestination();
+  const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
+
+  useEffect(() => {
+    if (!started) {
+      return;
     }
+
+    const oscillator = new Tone.Oscillator({ type: 'sine' }).toDestination();
+    myOscillator.current = oscillator;
+    return () => {
+      oscillator.dispose();
+      myOscillator.current = undefined;
+    };
+  }, [started]);
+
+  useEffect(() => {
+    myOscillator.current?.set({
+      frequency: myFrequency,
+      volume: Tone.gainToDb(volume / 100),
+    });
   }, [started, myFrequency, volume]);
 
   const { sendMessage, lastMessage, readyState } = useWebSocket(
@@ -216,7 +236,7 @@ function App() {
       const startTime = Math.max(Tone.now(), time);
       const beeps = parseMorseCode(startTime, code, wpm);
       for (const beep of beeps.beeps) {
-        myOscillator?.start(beep.start)?.stop(beep.stop);
+        myOscillator.current?.start(beep.start)?.stop(beep.stop);
       }
       setTime(startTime + beeps.duration);
     },
@@ -309,7 +329,7 @@ function App() {
   const start = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
-      myOscillator?.start();
+      myOscillator.current?.start();
       send(MessageType.START, { timestamp: Date.now() });
     },
     [myOscillator, send],
@@ -318,7 +338,7 @@ function App() {
   const stop = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
       event.preventDefault();
-      myOscillator?.stop();
+      myOscillator.current?.stop();
       send(MessageType.STOP, { timestamp: Date.now() });
     },
     [myOscillator, send],
@@ -480,7 +500,7 @@ function App() {
                   max="100"
                   value={volume}
                   onChange={handleVolumeChange}
-                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
+                  onMouseUp={() => myOscillator.current?.start().stop('+0.2')}
                 />
                 <span className="self-center">{volume}</span>
               </div>
@@ -493,7 +513,7 @@ function App() {
                   max="1000"
                   value={myFrequency}
                   onChange={handleFrequencyChange}
-                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
+                  onMouseUp={() => myOscillator.current?.start().stop('+0.2')}
                 />
                 <span className="self-center">{myFrequency}</span>
               </div>
