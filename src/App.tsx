@@ -81,7 +81,12 @@ function App() {
 
   const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
-  const onBlur = () => setFocused(false);
+  const onBlur = () => {
+    setFocused(false);
+    stop();
+  };
+
+  const transmittingRef = useRef(false);
 
   const [operators, setOperators] = useState<Operator[]>([]);
 
@@ -92,6 +97,14 @@ function App() {
   );
 
   const [time, setTime] = useState(Tone.now());
+
+  useEffect(() => {
+    const oscillators = oscillatorsRef.current;
+    return () => {
+      oscillators.forEach(oscillator => oscillator.dispose());
+      oscillators.clear();
+    };
+  }, []);
 
   useEffect(() => {
     const oscillators = oscillatorsRef.current;
@@ -115,7 +128,7 @@ function App() {
       Array.from(oscillators.keys())
         .filter(key => !operators.some(operator => operator.id === key))
         .forEach(key => {
-          oscillators.get(key)?.stop();
+          oscillators.get(key)?.dispose();
           oscillators.delete(key);
           // TODO maybe delete diffs here
         });
@@ -130,14 +143,26 @@ function App() {
   const pingTime = useRef<number | null>(null);
   const [displayLatency, setDisplayLatency] = useState(false);
 
-  const myOscillator = useMemo(() => {
-    if (started) {
-      return new Tone.Oscillator({
-        frequency: myFrequency,
-        type: 'sine',
-        volume: Tone.gainToDb(volume / 100),
-      }).toDestination();
+  const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
+
+  useEffect(() => {
+    if (!started) {
+      return;
     }
+
+    const oscillator = new Tone.Oscillator({ type: 'sine' }).toDestination();
+    myOscillator.current = oscillator;
+    return () => {
+      oscillator.dispose();
+      myOscillator.current = undefined;
+    };
+  }, [started]);
+
+  useEffect(() => {
+    myOscillator.current?.set({
+      frequency: myFrequency,
+      volume: Tone.gainToDb(volume / 100),
+    });
   }, [started, myFrequency, volume]);
 
   const { sendMessage, lastMessage, readyState } = useWebSocket(
@@ -216,7 +241,7 @@ function App() {
       const startTime = Math.max(Tone.now(), time);
       const beeps = parseMorseCode(startTime, code, wpm);
       for (const beep of beeps.beeps) {
-        myOscillator?.start(beep.start)?.stop(beep.stop);
+        myOscillator.current?.start(beep.start)?.stop(beep.stop);
       }
       setTime(startTime + beeps.duration);
     },
@@ -308,21 +333,63 @@ function App() {
 
   const start = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
+      if (!started || transmittingRef.current) {
+        return;
+      }
+      transmittingRef.current = true;
       event.preventDefault();
-      myOscillator?.start();
+      myOscillator.current?.start();
       send(MessageType.START, { timestamp: Date.now() });
     },
-    [myOscillator, send],
+    [myOscillator, send, started],
   );
 
   const stop = useCallback(
-    (event: React.UIEvent<HTMLElement>) => {
-      event.preventDefault();
-      myOscillator?.stop();
+    (event?: React.UIEvent<HTMLElement>) => {
+      if (!transmittingRef.current) {
+        return;
+      }
+      transmittingRef.current = false;
+      event?.preventDefault();
+      myOscillator.current?.stop();
       send(MessageType.STOP, { timestamp: Date.now() });
     },
     [myOscillator, send],
   );
+
+  useEffect(() => {
+    const stopTransmission = () => stop();
+    const releaseSpace = (event: KeyboardEvent) => {
+      if (event.key === ' ') {
+        stop();
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        stop();
+      }
+    };
+
+    // Capture releases even if focus moved or another control handles the event.
+    window.addEventListener('keyup', releaseSpace, true);
+    window.addEventListener('blur', stopTransmission);
+    window.addEventListener('mouseup', stopTransmission, true);
+    window.addEventListener('touchend', stopTransmission, true);
+    window.addEventListener('touchcancel', stopTransmission, true);
+    window.addEventListener('pointercancel', stopTransmission, true);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('keyup', releaseSpace, true);
+      window.removeEventListener('blur', stopTransmission);
+      window.removeEventListener('mouseup', stopTransmission, true);
+      window.removeEventListener('touchend', stopTransmission, true);
+      window.removeEventListener('touchcancel', stopTransmission, true);
+      window.removeEventListener('pointercancel', stopTransmission, true);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      stop();
+    };
+  }, [stop]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -337,20 +404,6 @@ function App() {
       }
     },
     [start],
-  );
-
-  const onKeyUp = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (
-        event.key === ' ' &&
-        event.target instanceof HTMLElement &&
-        event.target.tagName !== 'INPUT' &&
-        event.target.tagName !== 'BUTTON'
-      ) {
-        stop(event);
-      }
-    },
-    [stop],
   );
 
   const sendMorseCode = useCallback(
@@ -377,7 +430,6 @@ function App() {
       className="bg-slate-800 text-white outline-none"
       ref={inputReference}
       onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
       tabIndex={0}
       onFocus={onFocus}
       onBlur={onBlur}
@@ -480,7 +532,7 @@ function App() {
                   max="100"
                   value={volume}
                   onChange={handleVolumeChange}
-                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
+                  onMouseUp={() => myOscillator.current?.start().stop('+0.2')}
                 />
                 <span className="self-center">{volume}</span>
               </div>
@@ -493,7 +545,7 @@ function App() {
                   max="1000"
                   value={myFrequency}
                   onChange={handleFrequencyChange}
-                  onMouseUp={() => myOscillator?.start().stop('+0.2')}
+                  onMouseUp={() => myOscillator.current?.start().stop('+0.2')}
                 />
                 <span className="self-center">{myFrequency}</span>
               </div>
