@@ -81,7 +81,12 @@ function App() {
 
   const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
-  const onBlur = () => setFocused(false);
+  const onBlur = () => {
+    setFocused(false);
+    stop();
+  };
+
+  const transmittingRef = useRef(false);
 
   const [operators, setOperators] = useState<Operator[]>([]);
 
@@ -328,21 +333,63 @@ function App() {
 
   const start = useCallback(
     (event: React.UIEvent<HTMLElement>) => {
+      if (!started || transmittingRef.current) {
+        return;
+      }
+      transmittingRef.current = true;
       event.preventDefault();
       myOscillator.current?.start();
       send(MessageType.START, { timestamp: Date.now() });
     },
-    [myOscillator, send],
+    [myOscillator, send, started],
   );
 
   const stop = useCallback(
-    (event: React.UIEvent<HTMLElement>) => {
-      event.preventDefault();
+    (event?: React.UIEvent<HTMLElement>) => {
+      if (!transmittingRef.current) {
+        return;
+      }
+      transmittingRef.current = false;
+      event?.preventDefault();
       myOscillator.current?.stop();
       send(MessageType.STOP, { timestamp: Date.now() });
     },
     [myOscillator, send],
   );
+
+  useEffect(() => {
+    const stopTransmission = () => stop();
+    const releaseSpace = (event: KeyboardEvent) => {
+      if (event.key === ' ') {
+        stop();
+      }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        stop();
+      }
+    };
+
+    // Capture releases even if focus moved or another control handles the event.
+    window.addEventListener('keyup', releaseSpace, true);
+    window.addEventListener('blur', stopTransmission);
+    window.addEventListener('mouseup', stopTransmission, true);
+    window.addEventListener('touchend', stopTransmission, true);
+    window.addEventListener('touchcancel', stopTransmission, true);
+    window.addEventListener('pointercancel', stopTransmission, true);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('keyup', releaseSpace, true);
+      window.removeEventListener('blur', stopTransmission);
+      window.removeEventListener('mouseup', stopTransmission, true);
+      window.removeEventListener('touchend', stopTransmission, true);
+      window.removeEventListener('touchcancel', stopTransmission, true);
+      window.removeEventListener('pointercancel', stopTransmission, true);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      stop();
+    };
+  }, [stop]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -357,20 +404,6 @@ function App() {
       }
     },
     [start],
-  );
-
-  const onKeyUp = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (
-        event.key === ' ' &&
-        event.target instanceof HTMLElement &&
-        event.target.tagName !== 'INPUT' &&
-        event.target.tagName !== 'BUTTON'
-      ) {
-        stop(event);
-      }
-    },
-    [stop],
   );
 
   const sendMorseCode = useCallback(
@@ -397,7 +430,6 @@ function App() {
       className="bg-slate-800 text-white outline-none"
       ref={inputReference}
       onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
       tabIndex={0}
       onFocus={onFocus}
       onBlur={onBlur}
