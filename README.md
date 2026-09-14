@@ -28,3 +28,7 @@ The build is minified and the filenames include the hashes.\
 Your app is ready to be deployed!
 
 See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+
+## Playback and connection recovery
+
+See [the timing, rollout and pre-merge verification guide](docs/playback.md).
