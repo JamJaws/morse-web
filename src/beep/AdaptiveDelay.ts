@@ -50,7 +50,7 @@ export class AdaptiveDelay {
     this.lastLate = arrival;
     this.targetMs = Math.min(
       MAX_BUFFER_MS,
-      this.targetMs + lateness + MARGIN_MS,
+      this.targetMs + Math.max(0, lateness) + MARGIN_MS,
     );
   }
 }

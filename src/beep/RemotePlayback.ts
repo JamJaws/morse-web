@@ -170,7 +170,12 @@ export class RemotePlayback {
       return;
     }
     if (event.down && !this.keyDown) {
-      if (this.codeUntil > now) this.silence();
+      if (this.codeUntil > now) {
+        this.silence();
+        // An interrupted typed queue must not reserve silence until its old end.
+        this.lastStopSender = -Infinity;
+        this.lastStopPlayback = -Infinity;
+      }
       // Only long sender-timed pauses permit changing the playout offset.
       // Keep both mark lengths and intra-phrase gaps intact.
       if (event.timestamp - this.lastStopSender >= PHRASE_GAP_MS) {

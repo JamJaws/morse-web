@@ -181,6 +181,8 @@ describe('remote playback', () => {
     expect(r.edges).toEqual([]);
     expect(r.down).toBe(false);
     expect(r.playback.stats.discardedEvents).toBe(1);
+    expect(r.playback.stats.targetMs).toBeGreaterThanOrEqual(100);
+    expect(r.playback.stats.targetMs).toBeLessThanOrEqual(750);
   });
   it('queues typed messages synchronously and preserves mark lengths', () => {
     const r = receiver();
@@ -188,6 +190,18 @@ describe('remote playback', () => {
     expect(r.code(0)).toBe(true);
     expect(r.edges).toHaveLength(4);
     expect(r.edges[2].at).toBeGreaterThan(r.edges[1].at);
+    expect(r.edges[1].at - r.edges[0].at).toBeCloseTo(60);
+  });
+  it('starts manual keying promptly when it interrupts a long typed queue', () => {
+    const r = receiver();
+    expect(r.code(0, '-'.repeat(80), 4)).toBe(true);
+    expect(r.code(10, '.', 20)).toBe(true);
+    r.at(3_040);
+    r.key(3_000, true);
+    expect(r.edges.filter(e => e.down)).toHaveLength(1);
+    expect(r.edges[0].at).toBeLessThanOrEqual(3_790);
+    r.at(3_100);
+    r.key(3_060, false);
     expect(r.edges[1].at - r.edges[0].at).toBeCloseTo(60);
   });
   it('bounds typed backlog and clears all scheduled work on reset', () => {

@@ -255,3 +255,29 @@ it('disposes queued local playback on disconnect and retains unsent input', asyn
   );
   expect(messages('CODE')).toHaveLength(1);
 });
+
+it('ignores queued socket events while closing and does not repopulate audio', async () => {
+  const main = await join();
+  act(() => {
+    mocks.onOpen?.();
+    mocks.socket.bufferedAmount = 65_537;
+    vi.advanceTimersByTime(250);
+  });
+  expect(mocks.socket.close).toHaveBeenCalledOnce();
+  act(() => {
+    receive(roster);
+    receive({
+      type: 'KEY',
+      operatorId: 'peer',
+      timestamp: 250,
+      sequence: 1,
+      down: true,
+    });
+    vi.advanceTimersByTime(1_000);
+  });
+  expect(mocks.gains).toHaveLength(0);
+  expect(mocks.socket.close).toHaveBeenCalledOnce();
+  fireEvent.keyDown(main, { key: ' ' });
+  fireEvent.keyUp(main, { key: ' ' });
+  expect(messages('KEY')).toHaveLength(0);
+});

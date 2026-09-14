@@ -9,6 +9,7 @@ export function useMorseSocket(
   const handlers = useRef({ onMessage, onReset });
   handlers.current = { onMessage, onReset };
   const sequence = useRef(0);
+  const resetting = useRef(false);
   const pingId = useRef(0);
   const pendingPing = useRef<{ id: number; sent: number } | undefined>(
     undefined,
@@ -20,6 +21,7 @@ export function useMorseSocket(
     `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/beep`,
     {
       onOpen: () => {
+        resetting.current = false;
         sequence.current = 0;
         pendingPing.current = undefined;
         backlogSince.current = undefined;
@@ -28,11 +30,13 @@ export function useMorseSocket(
         handlers.current.onReset();
       },
       onClose: () => {
+        resetting.current = true;
         pendingPing.current = undefined;
         backlogSince.current = undefined;
         handlers.current.onReset();
       },
       onMessage: event => {
+        if (resetting.current) return;
         const message = parseMessage(event.data);
         if (!message) return;
         if (message.type === 'PONG' && message.id === pendingPing.current?.id) {
@@ -49,10 +53,14 @@ export function useMorseSocket(
     },
   );
   const reconnect = useCallback(() => {
+    if (resetting.current) return;
+    resetting.current = true;
+    pendingPing.current = undefined;
     handlers.current.onReset();
     getWebSocket()?.close();
   }, [getWebSocket]);
   const checkSocket = useCallback(() => {
+    if (resetting.current) return false;
     const socket = getWebSocket();
     if (!socket || socket.readyState !== ReadyState.OPEN) return false;
     const now = performance.now();
