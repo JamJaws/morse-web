@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { parseMessage, type ServerMessage } from './protocol';
 
+const PING_INTERVAL_MS = 5_000;
+const PONG_TIMEOUT_MS = 15_000;
+
 export function useMorseSocket(
   onMessage: (message: ServerMessage) => void,
   onReset: () => void,
@@ -25,7 +28,7 @@ export function useMorseSocket(
         sequence.current = 0;
         pendingPing.current = undefined;
         backlogSince.current = undefined;
-        nextPingAt.current = performance.now() + 2_000;
+        nextPingAt.current = performance.now() + PING_INTERVAL_MS;
         setLatency(null);
         handlers.current.onReset();
       },
@@ -90,7 +93,7 @@ export function useMorseSocket(
       send({
         type: 'KEY',
         down,
-        timestamp: performance.now(),
+        timestamp: Math.round(performance.now()),
         sequence: ++sequence.current,
       }),
     [send],
@@ -101,7 +104,7 @@ export function useMorseSocket(
         type: 'CODE',
         code,
         wpm,
-        timestamp: performance.now(),
+        timestamp: Math.round(performance.now()),
         sequence: ++sequence.current,
       }),
     [send],
@@ -116,12 +119,12 @@ export function useMorseSocket(
       if (!checkSocket()) return;
       const now = performance.now();
       if (pendingPing.current) {
-        if (now - pendingPing.current.sent >= 6_000) reconnect();
+        if (now - pendingPing.current.sent >= PONG_TIMEOUT_MS) reconnect();
       } else if (now >= nextPingAt.current) {
         const ping = { id: ++pingId.current, sent: now };
         if (send({ type: 'PING', id: ping.id })) {
           pendingPing.current = ping;
-          nextPingAt.current = now + 2_000;
+          nextPingAt.current = now + PING_INTERVAL_MS;
         }
       }
     }, 250);

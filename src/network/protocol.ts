@@ -35,9 +35,8 @@ export function parseMessage(data: unknown): ServerMessage | undefined {
     if (m.type === 'PONG' && Number.isSafeInteger(m.id)) return m;
     if (
       !id(m.operatorId) ||
-      !finite(m.timestamp) ||
+      !Number.isSafeInteger(m.timestamp) ||
       m.timestamp < 0 ||
-      m.timestamp > Number.MAX_SAFE_INTEGER ||
       !Number.isSafeInteger(m.sequence) ||
       m.sequence <= 0
     )

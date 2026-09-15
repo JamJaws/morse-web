@@ -145,14 +145,19 @@ it('runs heartbeat without hover and ignores unrelated PONGs', async () => {
   await join();
   act(() => {
     mocks.onOpen?.();
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(4_750);
+  });
+  expect(messages('PING')).toHaveLength(0);
+  act(() => {
+    vi.advanceTimersByTime(250);
   });
   const ping = messages('PING')[0];
   expect(ping).toBeDefined();
   act(() => {
     receive({ type: 'PONG', id: ping.id + 1 });
-    vi.advanceTimersByTime(5_750);
+    vi.advanceTimersByTime(14_750);
   });
+  expect(messages('PING')).toHaveLength(1);
   expect(mocks.socket.close).not.toHaveBeenCalled();
   act(() => {
     vi.advanceTimersByTime(250);
@@ -164,7 +169,7 @@ it('measures correlated RTT and closes a persistently backed-up native socket', 
   await join();
   act(() => {
     mocks.onOpen?.();
-    vi.advanceTimersByTime(2_000);
+    vi.advanceTimersByTime(5_000);
   });
   const ping = messages('PING')[0];
   act(() => {
@@ -280,4 +285,42 @@ it('ignores queued socket events while closing and does not repopulate audio', a
   fireEvent.keyDown(main, { key: ' ' });
   fireEvent.keyUp(main, { key: ' ' });
   expect(messages('KEY')).toHaveLength(0);
+});
+
+it('sends whole-millisecond KEY and CODE timestamps from the monotonic clock', async () => {
+  const main = await join();
+  const clock = vi.spyOn(performance, 'now').mockReturnValue(100.4);
+  try {
+    fireEvent.keyDown(main, { key: ' ' });
+    clock.mockReturnValue(160.4);
+    fireEvent.keyUp(main, { key: ' ' });
+    clock.mockReturnValue(200.6);
+    fireEvent.change(screen.getByLabelText('Message'), {
+      target: { value: 'E' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+    expect(messages('KEY').map(m => m.timestamp)).toEqual([100, 160]);
+    expect(messages('CODE')[0].timestamp).toBe(201);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it('waits five seconds between successful heartbeat exchanges', async () => {
+  await join();
+  act(() => {
+    mocks.onOpen?.();
+    vi.advanceTimersByTime(5_000);
+  });
+  const firstPing = messages('PING')[0];
+  act(() => {
+    receive({ type: 'PONG', id: firstPing.id });
+    vi.advanceTimersByTime(4_750);
+  });
+  expect(messages('PING')).toHaveLength(1);
+  act(() => {
+    vi.advanceTimersByTime(250);
+  });
+  expect(messages('PING')).toHaveLength(2);
+  expect(messages('PING')[1].id).toBeGreaterThan(firstPing.id);
 });

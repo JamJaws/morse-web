@@ -168,6 +168,7 @@ describe('remote playback', () => {
       { timestamp: 60, sequence: 1 },
       { timestamp: 60, sequence: 0 },
       { timestamp: NaN, sequence: 2 },
+      { timestamp: 60.5, sequence: 2 },
       { timestamp: 50, sequence: 2 },
       { timestamp: 80, sequence: 1.5 },
     ])

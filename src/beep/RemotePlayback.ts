@@ -61,9 +61,8 @@ export class RemotePlayback {
   }
   private accept(timestamp: number, sequence: number) {
     if (
-      !Number.isFinite(timestamp) ||
+      !Number.isSafeInteger(timestamp) ||
       timestamp < 0 ||
-      timestamp > Number.MAX_SAFE_INTEGER ||
       timestamp < this.lastTimestamp ||
       !Number.isSafeInteger(sequence) ||
       sequence <= this.lastSequence

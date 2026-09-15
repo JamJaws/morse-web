@@ -57,7 +57,10 @@ their end times are known.
 ## WebSocket behavior
 
 - KEY and CODE share a monotonic sequence per connection and use
-  `performance.now()` timestamps. The relay supplies the operator ID.
+  whole-millisecond timestamps from `Math.round(performance.now())`. The relay
+  supplies the operator ID. Timestamps remain monotonic without decimal payloads;
+  rounding introduces at most 0.5 ms of error per event. Internal audio scheduling
+  retains fractional precision.
 - Every recipient has one FIFO relay writer with 128 pending frames and a
   1 second enqueue-to-send deadline. A slow recipient is disconnected without
   blocking or disconnecting the sender. HELLO, roster updates and transmissions
@@ -65,7 +68,7 @@ their end times are known.
 - The browser never queues disconnected transmissions for replay. It reconnects
   if native `bufferedAmount` exceeds 64 KiB or stays nonzero for 1 second.
 - Correlated PING/PONG runs without hovering the connection indicator. A new ping
-  is sent every 2 seconds when none is outstanding, with a 6 second timeout.
+  is sent every 5 seconds when none is outstanding, with a 15 second timeout.
   Reconnects use exponential backoff with jitter, capped around 10 seconds.
 - The selected frequency is restored after HELLO. Failed typed sends retain the
   input. Old tabs must reload for this breaking protocol change.
