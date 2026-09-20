@@ -1,15 +1,8 @@
-import {
-  AdaptiveDelay,
-  INITIAL_BUFFER_MS,
-  MAX_BUFFER_MS,
-} from './AdaptiveDelay';
+import { AdaptiveDelay } from './AdaptiveDelay';
+import type { PlaybackSettings } from './PlaybackSettings';
 import { parseMorseCode } from './MorseCodeParser';
 
-export const KEY_LEASE_MS = 1_000;
-export const PHRASE_GAP_MS = 2_500;
 export const MAX_CODE_QUEUE_MS = 120_000;
-const STALE_MS = 1_000;
-const SCHEDULE_MARGIN_MS = 20;
 type Edge = { at: number; down: boolean; guard?: boolean };
 export interface PlaybackSink {
   replace(
@@ -32,7 +25,8 @@ export type TimedCode = {
 
 /** One synchronous owner of all timing state for an operator's connection. */
 export class RemotePlayback {
-  private delay = new AdaptiveDelay();
+  private delay: AdaptiveDelay;
+  private readonly settings: PlaybackSettings;
   private offset: number | undefined;
   private audioOffset: number;
   private queue: Edge[] = [];
@@ -53,7 +47,10 @@ export class RemotePlayback {
   constructor(
     private sink: PlaybackSink,
     private clock: PlaybackClock,
+    settings: Partial<PlaybackSettings> = {},
   ) {
+    this.delay = new AdaptiveDelay(settings);
+    this.settings = this.delay.settings;
     this.audioOffset = clock.audioNow() - clock.now() / 1_000;
   }
   private playhead() {
@@ -106,7 +103,7 @@ export class RemotePlayback {
   }
   reset() {
     this.silence();
-    this.delay = new AdaptiveDelay();
+    this.delay = new AdaptiveDelay(this.settings);
     this.offset = undefined;
     this.audioOffset = this.clock.audioNow() - this.clock.now() / 1_000;
     this.keyDown = false;
@@ -125,23 +122,23 @@ export class RemotePlayback {
     this.drain();
     if (!this.accept(event.timestamp, event.sequence)) return;
     if (this.offset === undefined)
-      this.offset = now - event.timestamp + INITIAL_BUFFER_MS;
+      this.offset = now - event.timestamp + this.settings.initialBufferMs;
     // After a persistent route change, recover at a real pause following a
     // release. Requiring a pause on both clocks prevents replaying a backlog.
     if (
       this.awaitingUp &&
       !this.keyDown &&
       event.down &&
-      event.timestamp - this.lastStopSender >= PHRASE_GAP_MS &&
-      now - this.lastReleaseArrival >= PHRASE_GAP_MS
+      event.timestamp - this.lastStopSender >= this.settings.phraseGapMs &&
+      now - this.lastReleaseArrival >= this.settings.phraseGapMs
     ) {
       this.reanchor(event.timestamp, now);
       this.awaitingUp = false;
     }
     let at = event.timestamp + this.offset!;
     if (
-      now - at > STALE_MS ||
-      at - now > MAX_BUFFER_MS + KEY_LEASE_MS ||
+      now - at > this.settings.staleAfterMs ||
+      at - now > this.settings.maxBufferMs + this.settings.keyLeaseMs ||
       this.queue.length >= 2_048
     ) {
       this.delay.missed(now - at, now);
@@ -177,11 +174,11 @@ export class RemotePlayback {
       }
       // Only long sender-timed pauses permit changing the playout offset.
       // Keep both mark lengths and intra-phrase gaps intact.
-      if (event.timestamp - this.lastStopSender >= PHRASE_GAP_MS) {
+      if (event.timestamp - this.lastStopSender >= this.settings.phraseGapMs) {
         at = Math.max(
           event.timestamp + this.delay.baseline + this.delay.targetMs,
-          now + SCHEDULE_MARGIN_MS,
-          this.lastStopPlayback + PHRASE_GAP_MS,
+          now + this.settings.scheduleMarginMs,
+          this.lastStopPlayback + this.settings.phraseGapMs,
         );
         this.offset = at - event.timestamp;
         // Recalibrate audio/monotonic clocks only between phrases.
@@ -200,7 +197,7 @@ export class RemotePlayback {
     this.keyDown = event.down;
     if (event.down)
       this.queue.push({
-        at: Math.max(at, now) + KEY_LEASE_MS,
+        at: Math.max(at, now) + this.settings.keyLeaseMs,
         down: false,
         guard: true,
       });
@@ -215,9 +212,7 @@ export class RemotePlayback {
 
   private reanchor(timestamp: number, now: number) {
     this.silence();
-    this.delay = new AdaptiveDelay();
-    this.delay.observe(timestamp, now);
-    this.delay.missed(STALE_MS, now);
+    this.delay.startRecovery(timestamp, now);
     this.offset = now - timestamp + this.delay.targetMs;
     this.audioOffset = this.clock.audioNow() - now / 1_000;
   }
@@ -228,29 +223,33 @@ export class RemotePlayback {
     const idle =
       !this.keyDown &&
       this.codeUntil <= now &&
-      event.timestamp - this.lastTimestamp >= PHRASE_GAP_MS &&
-      now - this.lastArrival >= PHRASE_GAP_MS;
+      event.timestamp - this.lastTimestamp >= this.settings.phraseGapMs &&
+      now - this.lastArrival >= this.settings.phraseGapMs;
     if (!this.accept(event.timestamp, event.sequence)) return false;
     if (this.offset === undefined)
-      this.offset = now - event.timestamp + INITIAL_BUFFER_MS;
+      this.offset = now - event.timestamp + this.settings.initialBufferMs;
     let due = event.timestamp + this.offset;
-    if (idle && now - due > STALE_MS) {
+    if (idle && now - due > this.settings.staleAfterMs) {
       this.reanchor(event.timestamp, now);
       due = event.timestamp + this.offset!;
     } else if (idle) {
       due = Math.max(
         event.timestamp + this.delay.baseline + this.delay.targetMs,
-        now + SCHEDULE_MARGIN_MS,
+        now + this.settings.scheduleMarginMs,
       );
       this.offset = due - event.timestamp;
       this.audioOffset = this.clock.audioNow() - now / 1_000;
     }
-    if (now - due > STALE_MS) {
+    if (now - due > this.settings.staleAfterMs) {
       this.delay.missed(now - due, now);
       this.discardedEvents++;
       return false;
     }
-    const start = Math.max(now + SCHEDULE_MARGIN_MS, due, this.codeUntil);
+    const start = Math.max(
+      now + this.settings.scheduleMarginMs,
+      due,
+      this.codeUntil,
+    );
     const parsed = parseMorseCode(start / 1_000, event.code, event.wpm);
     if (
       !parsed.beeps.length ||
@@ -284,7 +283,7 @@ export class RemotePlayback {
       appliedMs: Math.round(
         Math.max(
           0,
-          (this.offset ?? this.delay.baseline + INITIAL_BUFFER_MS) -
+          (this.offset ?? this.delay.baseline + this.settings.initialBufferMs) -
             this.delay.baseline,
         ),
       ),

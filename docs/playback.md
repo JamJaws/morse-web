@@ -19,9 +19,14 @@ window is 30 seconds and holds at most 512 events. These are starting heuristics
 not a guarantee that 99% of future traffic will arrive on time.
 
 The target grows on jitter or a late transition. It shrinks by at most 10 ms per
-second (and 10 ms per update), only with at least 40 recent samples and 30 seconds
-without a late event. Silence supplies no evidence to shrink. KEY refreshes and
-CODE frames both contribute samples; heartbeat RTT does not set the audio buffer.
+second (and 10 ms per update), only with at least 40 recent samples and a 30 second
+cooldown since the first sample or latest late event. The measurement window and
+cooldown are independent settings. The cooldown includes silence, but silence
+alone cannot shrink the target: after five idle minutes the old samples expire
+on the next arrival, the target is retained, and 40 fresh samples are needed
+before shrinking. Another 30 seconds of active sending is not required. KEY
+refreshes and CODE frames both contribute samples; heartbeat RTT does not set
+the audio buffer.
 
 An offset stays fixed within a phrase, preserving mark lengths and short gaps.
 Changes apply after a sender pause of at least 2.5 seconds; reducing the offset
@@ -36,7 +41,40 @@ route stays slower, a release followed by a 2.5 second pause on both sender and
 receiver clocks permits a new baseline. A burst containing old sender pauses
 cannot trigger that recovery. Events mapped implausibly far into the future are
 also discarded. Already missed marks cannot be reconstructed by increasing a
-buffer.
+buffer. Recovery explicitly starts at the maximum reserve and restarts the
+shrink cooldown; changing the stale-event threshold does not set that reserve.
+
+## Tuning
+
+Edit `DEFAULT_PLAYBACK_SETTINGS` in `src/beep/PlaybackSettings.ts`, then rebuild
+and reload the client. Buffer tuning does not require relay changes. Current
+defaults are preserved; all estimator and playback timing values live together:
+
+| Settings                                        | Defaults           | Purpose                                                                   |
+| ----------------------------------------------- | ------------------ | ------------------------------------------------------------------------- |
+| `initialBufferMs`, `minBufferMs`, `maxBufferMs` | 300 / 100 / 750 ms | Initial reserve and target bounds                                         |
+| `sampleWindowMs`, `maxSamples`                  | 30,000 ms / 512    | Age and count limits for measurements                                     |
+| `minSamplesToShrink`, `shrinkCooldownMs`        | 40 / 30,000 ms     | Fresh evidence and elapsed cooldown required before shrinking             |
+| `baselinePercentile`, `jitterPercentile`        | 0.05 / 0.99        | Faster-arrival baseline and slower-arrival estimate                       |
+| `safetyMarginMs`                                | 50 ms              | Spare reserve for jitter and missed deadlines                             |
+| `shrinkRateMsPerSecond`, `maxShrinkPerUpdateMs` | 10 / 10 ms         | Independent reduction rate and per-arrival cap                            |
+| `phraseGapMs`                                   | 2,500 ms           | Safe pause for changing the playback offset                               |
+| `staleAfterMs`                                  | 1,000 ms           | Discard threshold relative to scheduled playback                          |
+| `scheduleMarginMs`                              | 20 ms              | Minimum lead time when scheduling a new phrase/message                    |
+| `keyLeaseMs`                                    | 1,000 ms           | Held-key audio cutoff; keep comfortably above the 250 ms refresh interval |
+
+Settings are validated when constructing the scheduler: values must be finite,
+buffer bounds must contain the initial value, sample limits must be positive
+integers with `minSamplesToShrink <= maxSamples`, and percentiles must be ordered.
+Shorter measurement windows can make the minimum sample count harder to reach.
+
+`AdaptiveDelay` accepts optional settings as its first constructor argument;
+`RemotePlayback` accepts them as its third. Partial overrides are merged with
+the defaults and copied into a read-only snapshot. Reset clears learned timing
+and returns to the configured initial reserve, preserving the chosen settings.
+Behavior tests use a complete fixed policy so tuning production defaults does
+not rewrite the timing scenarios. Additional tests exercise different windows,
+cooldowns, sample limits, recovery thresholds, and buffer bounds.
 
 ## Fail-silent behavior
 

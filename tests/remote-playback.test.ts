@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { AdaptiveDelay } from '../src/beep/AdaptiveDelay';
 import { RemotePlayback } from '../src/beep/RemotePlayback';
 import { parseMorseCode } from '../src/beep/MorseCodeParser';
+import type { PlaybackSettings } from '../src/beep/PlaybackSettings';
+import { PLAYBACK_TEST_SETTINGS } from './playback-fixture';
 
-function receiver() {
+function receiver(settings: Partial<PlaybackSettings> = {}) {
   let now = 40;
   let sequence = 0;
   let down = false;
@@ -16,6 +17,7 @@ function receiver() {
       },
     },
     { now: () => now, audioNow: () => 10 + now / 1_000 },
+    { ...PLAYBACK_TEST_SETTINGS, ...settings },
   );
   return {
     playback,
@@ -38,6 +40,65 @@ function receiver() {
 }
 
 describe('remote playback', () => {
+  it.each(['key', 'code'] as const)(
+    'preserves custom initial timing and mark lengths for %s across reset',
+    mode => {
+      const r = receiver({ initialBufferMs: 200 });
+      const sendDot = (timestamp: number) => {
+        if (mode === 'code') r.code(timestamp);
+        else {
+          r.key(timestamp, true);
+          r.key(timestamp + 60, false);
+        }
+      };
+      sendDot(0);
+      expect(r.edges.map(e => Math.round(e.at))).toEqual([240, 300]);
+      r.playback.reset();
+      expect(r.edges).toEqual([]);
+      expect(r.playback.stats.targetMs).toBe(200);
+      r.at(4_040);
+      sendDot(4_000);
+      expect(r.edges.map(e => Math.round(e.at))).toEqual([4_240, 4_300]);
+    },
+  );
+
+  it.each(['key', 'code'] as const)(
+    'recovers %s at the configured maximum independently of the stale threshold',
+    mode => {
+      const r = receiver({
+        initialBufferMs: 200,
+        maxBufferMs: 900,
+        staleAfterMs: 100,
+        phraseGapMs: 1_000,
+      });
+      if (mode === 'key') {
+        r.key(0, true);
+        r.at(100);
+        r.key(60, false);
+        r.at(2_000);
+        r.key(1_000, true);
+        r.key(1_060, false);
+        expect(r.edges).toEqual([]);
+        r.at(3_200);
+        r.key(2_200, true);
+        r.at(3_260);
+        r.key(2_260, false);
+      } else {
+        r.code(0);
+        r.at(3_200);
+        r.code(2_200);
+      }
+      expect(r.playback.stats.targetMs).toBe(900);
+      expect(r.edges.map(e => Math.round(e.at))).toEqual([4_100, 4_160]);
+    },
+  );
+
+  it('uses the configured initial reserve and audio-clock lease', () => {
+    const r = receiver({ initialBufferMs: 200, keyLeaseMs: 600 });
+    r.key(0, true);
+    expect(r.edges.map(e => Math.round(e.at))).toEqual([240, 840]);
+  });
+
   it('preserves a 60 ms dot despite different arrival delays', () => {
     const r = receiver();
     r.key(0, true);
@@ -221,27 +282,6 @@ describe('remote playback', () => {
     r.at(5_000);
     expect(r.code(3_000)).toBe(true);
     expect(r.edges[0].at).toBeCloseTo(5_750);
-  });
-});
-
-describe('adaptive delay', () => {
-  it('replaces a biased first arrival and shrinks slowly, with bounded growth after a miss', () => {
-    const delay = new AdaptiveDelay();
-    delay.observe(0, 400);
-    for (let i = 1; i <= 400; i++)
-      delay.observe(i * 200, Math.max(400, i * 200 + 40));
-    expect(delay.baseline).toBe(40);
-    expect(delay.targetMs).toBe(100);
-    delay.missed(1_000, 80_040);
-    expect(delay.targetMs).toBe(750);
-    delay.observe(81_000, 81_040);
-    expect(delay.targetMs).toBe(750);
-  });
-  it('does not treat silence or sparse arrivals as evidence to shrink', () => {
-    const delay = new AdaptiveDelay();
-    for (let i = 0; i < 50; i++) delay.observe(i * 100, i * 100 + 40);
-    delay.observe(100_000, 100_040);
-    expect(delay.targetMs).toBe(300);
   });
 });
 
