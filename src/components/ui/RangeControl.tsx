@@ -1,7 +1,7 @@
 interface RangeControlProps {
   id: string;
   label: string;
-  description: string;
+  description?: string;
   value: number;
   min: number;
   max: number;
@@ -45,7 +45,7 @@ export function RangeControl({
         max={max}
         step={1}
         value={value}
-        aria-describedby={`${id}-help`}
+        aria-describedby={description ? `${id}-help` : undefined}
         aria-valuetext={`${value} ${spokenUnit}`}
         onChange={event => onChange(Number(event.target.value))}
         onPointerUp={onPreview}
@@ -66,9 +66,11 @@ export function RangeControl({
         }}
         className="h-8 w-full cursor-pointer accent-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
       />
-      <p id={`${id}-help`} className="text-sm leading-relaxed text-muted">
-        {description}
-      </p>
+      {description && (
+        <p id={`${id}-help`} className="text-sm leading-relaxed text-muted">
+          {description}
+        </p>
+      )}
     </div>
   );
 }

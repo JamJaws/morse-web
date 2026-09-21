@@ -176,7 +176,7 @@ it('measures correlated RTT and closes a persistently backed-up native socket', 
     vi.advanceTimersByTime(125);
     receive({ type: 'PONG', id: ping.id });
   });
-  expect(screen.getByText('125 ms round-trip latency')).toBeDefined();
+  expect(screen.getByText('125 ms')).toBeDefined();
   act(() => {
     mocks.socket.bufferedAmount = 10;
     vi.advanceTimersByTime(1_125);

@@ -45,7 +45,7 @@ export default function MorseCodeInput({
           id="morse-code-input"
           type="text"
           autoComplete="off"
-          placeholder="Try CQ or HELLO…"
+          placeholder="CQ…"
           maxLength={2048}
           value={message}
           aria-describedby={`message-help${unknownCharacters ? ' message-warning' : ''}`}
@@ -67,8 +67,8 @@ export default function MorseCodeInput({
       </div>
       <p id="message-help" className="text-sm leading-relaxed text-muted">
         {connected
-          ? `Broadcasts your message as Morse at ${wpm} WPM. Press Enter to send.`
-          : 'Reconnecting. Your draft will stay here until you can send it.'}
+          ? `Broadcast at ${wpm} WPM · Enter to send`
+          : 'Reconnecting…'}
       </p>
       {unknownCharacters && (
         <p id="message-warning" className="text-sm text-warning">

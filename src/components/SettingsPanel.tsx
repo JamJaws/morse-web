@@ -17,19 +17,13 @@ export function SettingsPanel({
       aria-labelledby="settings-heading"
       className="mx-auto w-full max-w-xl rounded-3xl border border-stroke bg-surface p-6 sm:p-8"
     >
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
-          <h2
-            id="settings-heading"
-            className="text-2xl font-semibold tracking-tight"
-          >
-            Audio settings
-          </h2>
-          <p className="mt-2 text-sm text-muted">
-            Preferences are saved on this device when browser storage is
-            available.
-          </p>
-        </div>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <h2
+          id="settings-heading"
+          className="text-2xl font-semibold tracking-tight"
+        >
+          Audio settings
+        </h2>
         <IconButton label="Close settings" variant="ghost" onClick={onClose}>
           <FaTimes aria-hidden="true" />
         </IconButton>
@@ -38,11 +32,7 @@ export function SettingsPanel({
         <RangeControl
           id="volume"
           label="Volume"
-          description={
-            session.muted
-              ? 'Sound is muted. Unmute from the header to hear tones.'
-              : 'Controls your own tone and incoming operators.'
-          }
+          description={session.muted ? 'Sound is muted.' : undefined}
           value={session.volume}
           {...preferenceRanges.volume}
           unit="%"
@@ -53,7 +43,6 @@ export function SettingsPanel({
         <RangeControl
           id="frequency"
           label="Frequency"
-          description="The pitch of your transmitted tone. Other operators keep their own pitch."
           value={session.myFrequency}
           {...preferenceRanges.frequency}
           unit="Hz"
@@ -64,7 +53,7 @@ export function SettingsPanel({
         <RangeControl
           id="wpm"
           label="WPM"
-          description="Words per minute for typed messages and reference playback. Manual keying follows your timing."
+          description="Typed messages and reference playback."
           value={session.wpm}
           {...preferenceRanges.wpm}
           unit="WPM"

@@ -125,9 +125,7 @@ it('exposes connection details to keyboard users without keying the transmitter'
   fireEvent.keyDown(summary, { key: ' ' });
   fireEvent.keyUp(summary, { key: ' ' });
   expect(sentCommands()).toEqual([]);
-  expect(
-    within(summary.parentElement!).getByText('Measuring latency…'),
-  ).toBeDefined();
+  expect(within(summary.parentElement!).getByText('Measuring…')).toBeDefined();
   expect(summary.parentElement!.textContent).not.toContain('null ms');
 });
 

@@ -67,6 +67,8 @@ function App() {
             {session.started && (
               <Button
                 variant="ghost"
+                size="icon"
+                className="sm:w-auto sm:px-4"
                 aria-label={session.muted ? 'Unmute sound' : 'Mute sound'}
                 onClick={session.toggleMute}
               >
@@ -75,17 +77,22 @@ function App() {
                 ) : (
                   <FaVolumeUp aria-hidden="true" />
                 )}
-                <span>{session.muted ? 'Unmute' : 'Mute'}</span>
+                <span className="hidden sm:inline">
+                  {session.muted ? 'Unmute' : 'Mute'}
+                </span>
               </Button>
             )}
             <Button
               variant={showSettings ? 'secondary' : 'ghost'}
+              size="icon"
+              className="sm:w-auto sm:px-4"
+              aria-label="Settings"
               aria-expanded={showSettings}
               aria-controls="settings"
               onClick={() => setShowSettings(current => !current)}
             >
               <FaSlidersH aria-hidden="true" />
-              <span>Settings</span>
+              <span className="hidden sm:inline">Settings</span>
             </Button>
           </div>
         </div>
@@ -114,9 +121,6 @@ function App() {
                   <br />
                   dots and dashes.
                 </h2>
-                <p className="mt-6 max-w-sm text-base leading-relaxed text-muted">
-                  Listen and transmit in Morse.
-                </p>
                 <Button
                   variant="primary"
                   className="mt-8"
@@ -127,7 +131,7 @@ function App() {
                   {session.starting ? 'Enabling sound…' : 'Join'}
                 </Button>
                 <p className="mt-4 text-sm text-muted">
-                  Joining enables sound. You can adjust the volume in Settings.
+                  Joining enables sound.
                 </p>
               </section>
             ) : (
@@ -150,15 +154,14 @@ function App() {
                   id="morse-key-help"
                   className="mt-6 text-sm leading-relaxed text-muted"
                 >
-                  Hold the key with your mouse or touch.
+                  Hold with mouse or touch.
                   <br />
-                  Use <kbd className="font-mono text-ink">Space</kbd> or{' '}
-                  <kbd className="font-mono text-ink">Enter</kbd> when the key
-                  is focused.
+                  <kbd className="font-mono text-ink">Space</kbd> or{' '}
+                  <kbd className="font-mono text-ink">Enter</kbd> when focused.
                 </p>
                 {!connected && (
                   <p className="mt-3 text-sm text-warning">
-                    Local practice only while reconnecting.
+                    Reconnecting · Local playback only
                   </p>
                 )}
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -205,8 +208,7 @@ function App() {
                 Morse reference
               </h2>
               <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-                Tap a character to hear it locally at {session.wpm} WPM.
-                Reference tones are not broadcast.
+                Local playback · {session.wpm} WPM
               </p>
               <MorseCodeTable
                 onClick={character => session.playMyMorseCode(character.code)}
