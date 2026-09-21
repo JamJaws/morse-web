@@ -6,9 +6,9 @@ import React, {
   useState,
 } from 'react';
 import * as Tone from 'tone';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import { ReadyState } from 'react-use-websocket';
 import { useSearchParams } from 'react-router-dom';
-import styled from '@emotion/styled'; // TODO delete emotion
+import styled from '@emotion/styled';
 import SettingsButton from './SettingsButton';
 import debounce from 'debounce';
 import { FaBroadcastTower, FaKeyboard } from 'react-icons/fa';
@@ -16,148 +16,80 @@ import MorseCodeTable from './beep/MorseCodeTable';
 import MorseCodeInput from './beep/MorseCodeInput';
 import { convertToCode } from './beep/MorseCodeConverter';
 import { parseMorseCode } from './beep/MorseCodeParser';
+import { RemoteVoice } from './beep/RemoteVoice';
+import { MAX_CODE_QUEUE_MS } from './beep/RemotePlayback';
+import { useMorseSocket } from './network/useMorseSocket';
+import type { Operator, ServerMessage } from './network/protocol';
 import Warning from './components/Warning';
-
-const TARGET_DELAY = 200;
-
-enum MessageType {
-  HELLO = 'HELLO',
-  START = 'START',
-  STOP = 'STOP',
-  OPERATORS = 'OPERATORS',
-  FREQUENCY = 'FREQUENCY',
-  CODE = 'CODE',
-  PING = 'PING',
-  PONG = 'PONG',
-}
-
-type Message = {
-  type: MessageType;
-  operatorId?: string;
-  frequency?: number;
-  operators?: Operator[];
-  code?: string;
-  wpm?: number;
-  timestamp?: number;
-};
-
-interface Operator {
-  id: string;
-  frequency: number;
-}
 
 const Main = styled.div`
   :focus {
     outline: none;
   }
 `;
-
 const Hint = styled.p`
   color: #d7d3cb;
 `;
 
-const millisecondsToSeconds = (diff: number) => diff / 1_000;
-
 function App() {
   const [searchParams] = useSearchParams();
-
   const [started, setStarted] = useState(false);
+  const startedRef = useRef(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeys, setShowKeys] = useState(false);
   const [volume, setVolume] = useState(80);
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
   const [wpm, setWpm] = useState(20);
-
-  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const [notice, setNotice] = useState('');
+  const handleVolumeChange = (event: React.ChangeEvent<HTMLInputElement>) =>
     setVolume(Number(event.target.value));
-  };
-
   const inputReference = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (started) {
-      inputReference?.current?.focus();
-    }
+    if (started) inputReference.current?.focus();
   }, [started]);
-
   const [focused, setFocused] = useState(false);
   const onFocus = () => setFocused(true);
   const onBlur = () => {
     setFocused(false);
     stop();
   };
-
   const transmittingRef = useRef(false);
-
   const [operators, setOperators] = useState<Operator[]>([]);
-
-  const oscillatorsRef = useRef<Map<string, Tone.Oscillator>>(new Map());
+  const operatorsRef = useRef<Operator[]>([]);
+  const voicesRef = useRef(new Map<string, RemoteVoice>());
   const [remoteOscillatorIds, setRemoteOscillatorIds] = useState<string[]>([]);
-  const [operatorTimes, setOperatorTimes] = useState<{ [key: string]: number }>(
-    {},
-  );
-
-  const [time, setTime] = useState(Tone.now());
-
-  useEffect(() => {
-    const oscillators = oscillatorsRef.current;
-    return () => {
-      oscillators.forEach(oscillator => oscillator.dispose());
-      oscillators.clear();
-    };
-  }, []);
-
-  useEffect(() => {
-    const oscillators = oscillatorsRef.current;
-    if (started) {
-      operators.forEach(operator => {
-        if (!oscillators.has(operator.id)) {
-          const oscillator = new Tone.Oscillator({
-            frequency: operator.frequency,
-            type: 'sine',
-            volume: Tone.gainToDb(volume / 100),
-          }).toDestination();
-          oscillators.set(operator.id, oscillator);
-        } else {
-          oscillators.get(operator.id)?.set({
-            frequency: operator.frequency,
-            volume: Tone.gainToDb(volume / 100),
-          });
-        }
-      });
-
-      Array.from(oscillators.keys())
-        .filter(key => !operators.some(operator => operator.id === key))
-        .forEach(key => {
-          oscillators.get(key)?.dispose();
-          oscillators.delete(key);
-          // TODO maybe delete diffs here
-        });
-
-      setRemoteOscillatorIds(Array.from(oscillators.keys()));
-    }
-  }, [started, operators, volume]);
-
+  const [playbackStats, setPlaybackStats] = useState('');
+  const timeRef = useRef(0);
   const [myOperatorId, setMyOperatorId] = useState<string>();
-  const [myFrequency, setMyFrequency] = useState<number>(800);
-  const [latency, setLatency] = useState<number | null>(null);
-  const pingTime = useRef<number | null>(null);
-  const [displayLatency, setDisplayLatency] = useState(false);
-
+  const myIdRef = useRef<string | undefined>(undefined);
+  const [myFrequency, setMyFrequency] = useState(800);
+  const frequencyRef = useRef(myFrequency);
+  frequencyRef.current = myFrequency;
+  const preferredFrequency = useRef<number | undefined>(undefined);
   const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
 
+  const resetLocalAudio = useCallback(() => {
+    // Tone creates a native node for every queued mark. Replacing the voice
+    // disconnects all of them; stop() alone only stops the latest node.
+    myOscillator.current?.dispose();
+    myOscillator.current = startedRef.current
+      ? new Tone.Oscillator({
+          type: 'sine',
+          frequency: frequencyRef.current,
+          volume: Tone.gainToDb(volumeRef.current / 100),
+        }).toDestination()
+      : undefined;
+    timeRef.current = 0;
+  }, []);
   useEffect(() => {
-    if (!started) {
-      return;
-    }
-
-    const oscillator = new Tone.Oscillator({ type: 'sine' }).toDestination();
-    myOscillator.current = oscillator;
+    if (!started) return;
+    resetLocalAudio();
     return () => {
-      oscillator.dispose();
+      myOscillator.current?.dispose();
       myOscillator.current = undefined;
     };
-  }, [started]);
-
+  }, [started, resetLocalAudio]);
   useEffect(() => {
     myOscillator.current?.set({
       frequency: myFrequency,
@@ -165,145 +97,145 @@ function App() {
     });
   }, [started, myFrequency, volume]);
 
-  const { sendMessage, lastMessage, readyState } = useWebSocket(
-    `wss://${window.location.hostname}/beep`,
-    {
-      onMessage: async event => {
-        handleMessage(JSON.parse(event.data));
-      },
-      onOpen: () => {
-        // TODO send frequency
-      },
-      shouldReconnect: () => true,
-      reconnectInterval: attemptNumber =>
-        Math.min(Math.pow(2, attemptNumber) * 1000, 10000),
-    },
-  );
-
-  const send = useCallback(
-    (
-      command: MessageType,
-      properties: { [key: string]: string | number } = {},
-    ) => sendMessage(JSON.stringify({ type: command, ...properties })),
-    [sendMessage],
-  );
-
-  useEffect(() => {
-    const startPing = () => {
-      pingTime.current = Date.now();
-      send(MessageType.PING);
-    };
-
-    let interval: NodeJS.Timeout | undefined;
-    if (readyState === ReadyState.OPEN && displayLatency) {
-      startPing();
-      interval = setInterval(startPing, 1_000);
+  const syncVoices = useCallback(() => {
+    const voices = voicesRef.current;
+    const peers = startedRef.current
+      ? operatorsRef.current.filter(operator => operator.id !== myIdRef.current)
+      : [];
+    for (const operator of peers) {
+      const existing = voices.get(operator.id);
+      if (existing) existing.set(operator.frequency, volumeRef.current);
+      else
+        voices.set(
+          operator.id,
+          new RemoteVoice(operator.frequency, volumeRef.current),
+        );
     }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [readyState, send, displayLatency]);
-
-  const [diffs, setDiffs] = useState<Map<string, number>>(new Map());
-
-  const getDelayOffsetDiff = useCallback(
-    (operatorId: string, timestamp: number) => {
-      const currentDiff = Date.now() - timestamp;
-      const delay = TARGET_DELAY + (diffs.get(operatorId)! - currentDiff); // TODO operatorId might not exist
-      return `+${millisecondsToSeconds(delay)}`;
-    },
-    [diffs],
-  );
-
-  const playMorseCode = useCallback(
-    (operatorId: string, code: string, wpm: number) => {
-      const startTime = Math.max(Tone.now(), operatorTimes[operatorId] ?? 0);
-      const beeps = parseMorseCode(startTime, code, wpm);
-
-      for (const beep of beeps.beeps) {
-        oscillatorsRef.current
-          .get(operatorId)
-          ?.start(beep.start)
-          ?.stop(beep.stop);
+    for (const [id, voice] of voices) {
+      if (!peers.some(operator => operator.id === id)) {
+        voice.dispose();
+        voices.delete(id);
       }
-
-      setOperatorTimes(prevState => ({
-        ...prevState,
-        [operatorId]: startTime + beeps.duration,
-      }));
-    },
-    [operatorTimes],
+    }
+    setRemoteOscillatorIds([...voices.keys()]);
+  }, []);
+  useEffect(() => {
+    syncVoices();
+  }, [started, volume, syncVoices]);
+  useEffect(() => {
+    const voices = voicesRef.current;
+    const ticker = setInterval(() => {
+      voices.forEach(voice => voice.playback.tick());
+    }, 100);
+    const stats = setInterval(() => {
+      setPlaybackStats(
+        JSON.stringify(
+          [...voices].map(([operator, voice]) => ({
+            operator,
+            ...voice.playback.stats,
+          })),
+        ),
+      );
+    }, 1_000);
+    return () => {
+      clearInterval(ticker);
+      clearInterval(stats);
+      voices.forEach(voice => voice.dispose());
+      voices.clear();
+    };
+  }, []);
+  const resetConnection = useCallback(() => {
+    transmittingRef.current = false;
+    if (myOscillator.current) resetLocalAudio();
+    voicesRef.current.forEach(voice => voice.dispose());
+    voicesRef.current.clear();
+    operatorsRef.current = [];
+    setOperators([]);
+    setRemoteOscillatorIds([]);
+    myIdRef.current = undefined;
+    setMyOperatorId(undefined);
+  }, [resetLocalAudio]);
+  const messageHandler = useRef<(message: ServerMessage) => void>(() => {});
+  const {
+    sendKey,
+    sendCode,
+    sendFrequency,
+    reconnect,
+    readyState,
+    lastMessage,
+    latency,
+  } = useMorseSocket(
+    message => messageHandler.current(message),
+    resetConnection,
   );
-
+  messageHandler.current = message => {
+    switch (message.type) {
+      case 'HELLO':
+        myIdRef.current = message.operatorId;
+        setMyOperatorId(message.operatorId);
+        preferredFrequency.current ??= message.frequency;
+        setMyFrequency(preferredFrequency.current);
+        sendFrequency(preferredFrequency.current);
+        break;
+      case 'OPERATORS':
+        operatorsRef.current = message.operators;
+        setOperators(message.operators);
+        syncVoices();
+        break;
+      case 'KEY':
+        voicesRef.current.get(message.operatorId)?.playback.key(message);
+        break;
+      case 'CODE':
+        voicesRef.current.get(message.operatorId)?.playback.code(message);
+        break;
+    }
+  };
+  useEffect(() => {
+    const context = Tone.getContext();
+    const onStateChange = () => {
+      if (context.state !== 'running' && startedRef.current) {
+        startedRef.current = false;
+        setStarted(false);
+        reconnect();
+      }
+    };
+    context.on('statechange', onStateChange);
+    return () => {
+      context.off('statechange', onStateChange);
+    };
+  }, [reconnect]);
   const playMyMorseCode = useCallback(
     (code: string) => {
-      const startTime = Math.max(Tone.now(), time);
-      const beeps = parseMorseCode(startTime, code, wpm);
-      for (const beep of beeps.beeps) {
+      if (transmittingRef.current) {
+        setNotice('Release the key before sending a message.');
+        return false;
+      }
+      if (!code || !/[.-]/.test(code)) {
+        setNotice('Enter a message with supported characters.');
+        return false;
+      }
+      const startTime = Math.max(Tone.now(), timeRef.current);
+      const parsed = parseMorseCode(startTime, code, wpm);
+      if (
+        code.length > 2_048 ||
+        (startTime + parsed.duration - Tone.now()) * 1_000 > MAX_CODE_QUEUE_MS
+      ) {
+        setNotice(
+          'Message queue full. Wait for playback or send a shorter message.',
+        );
+        return false;
+      }
+      for (const beep of parsed.beeps)
         myOscillator.current?.start(beep.start)?.stop(beep.stop);
-      }
-      setTime(startTime + beeps.duration);
+      timeRef.current = startTime + parsed.duration;
+      setNotice('');
+      return true;
     },
-    [myOscillator, time, wpm],
+    [wpm],
   );
-
-  const handleMessage = useCallback(
-    (message: Message) => {
-      if (message.type === MessageType.START) {
-        if (!message.operatorId || typeof message.timestamp !== 'number') {
-          return;
-        }
-
-        const oscillator = oscillatorsRef.current.get(message.operatorId);
-
-        const { operatorId, timestamp } = message;
-        if (diffs.has(operatorId)) {
-          const time = getDelayOffsetDiff(operatorId, timestamp);
-          oscillator?.stop(time);
-          oscillator?.start(time);
-        } else {
-          setDiffs(prevDiffs => {
-            return new Map(prevDiffs).set(operatorId, Date.now() - timestamp);
-          });
-          oscillator?.stop();
-          oscillator?.start(`+${millisecondsToSeconds(TARGET_DELAY)}`);
-        }
-      } else if (message.type === MessageType.STOP) {
-        if (!message.operatorId || typeof message.timestamp !== 'number') {
-          return;
-        }
-        const oscillator = oscillatorsRef.current.get(message.operatorId);
-        const time = getDelayOffsetDiff(message.operatorId, message.timestamp);
-        oscillator?.stop(time);
-      } else if (message.type === MessageType.HELLO) {
-        if (!message.operatorId || typeof message.frequency !== 'number') {
-          return;
-        }
-        setMyOperatorId(message.operatorId);
-        setMyFrequency(message.frequency);
-      } else if (message.type === MessageType.OPERATORS) {
-        if (!message.operators) {
-          return;
-        }
-        setOperators(message.operators);
-      } else if (message.type === MessageType.CODE) {
-        if (!message.operatorId || !message.code || !message.wpm) {
-          return;
-        }
-        playMorseCode(message.operatorId, message.code, message.wpm);
-      } else if (message.type === MessageType.PONG) {
-        if (typeof pingTime.current === 'number') {
-          const pongTime = Date.now();
-          setLatency(pongTime - pingTime.current);
-        }
-      }
-    },
-    [diffs, getDelayOffsetDiff, playMorseCode],
-  );
-
   const startAudio = useCallback(async () => {
     await Tone.start();
+    startedRef.current = true;
     setStarted(true);
   }, []);
 
@@ -318,13 +250,14 @@ function App() {
   const debouncedSendFrequency = useMemo(
     () =>
       debounce((frequency: number) => {
-        send(MessageType.FREQUENCY, { frequency });
+        sendFrequency(frequency);
       }, 300),
-    [send],
+    [sendFrequency],
   );
 
   const handleFrequencyChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
+      preferredFrequency.current = Number(event.target.value);
       setMyFrequency(Number(event.target.value));
       debouncedSendFrequency(Number(event.target.value));
     },
@@ -338,10 +271,12 @@ function App() {
       }
       transmittingRef.current = true;
       event.preventDefault();
+      if (timeRef.current > Tone.immediate()) resetLocalAudio();
       myOscillator.current?.start();
-      send(MessageType.START, { timestamp: Date.now() });
+      if (!sendKey(true))
+        setNotice('Connection unavailable. Your tone is local only.');
     },
-    [myOscillator, send, started],
+    [sendKey, started, resetLocalAudio],
   );
 
   const stop = useCallback(
@@ -352,9 +287,9 @@ function App() {
       transmittingRef.current = false;
       event?.preventDefault();
       myOscillator.current?.stop();
-      send(MessageType.STOP, { timestamp: Date.now() });
+      sendKey(false);
     },
-    [myOscillator, send],
+    [sendKey],
   );
 
   useEffect(() => {
@@ -406,11 +341,15 @@ function App() {
     [start],
   );
 
-  const sendMorseCode = useCallback(
-    (code: string, wpm: number) => {
-      send(MessageType.CODE, { code, wpm });
-    },
-    [send],
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (transmittingRef.current) sendKey(true);
+    }, 250);
+    return () => clearInterval(interval);
+  }, [sendKey]);
+  useEffect(
+    () => () => debouncedSendFrequency.clear(),
+    [debouncedSendFrequency],
   );
 
   const connectionColor = {
@@ -437,11 +376,7 @@ function App() {
       <div className="min-h-screen flex flex-col">
         <div className="top-bar w-full flex justify-between items-center py-2 px-4">
           <div className="flex items-center justify-center gap-4">
-            <div
-              className="relative flex items-center group"
-              onMouseEnter={() => setDisplayLatency(true)}
-              onMouseLeave={() => setDisplayLatency(false)}
-            >
+            <div className="relative flex items-center group">
               <span
                 className="w-4 h-4 rounded-full"
                 style={{ backgroundColor: connectionColor }}
@@ -513,8 +448,20 @@ function App() {
                   <MorseCodeInput
                     onSend={(message: string) => {
                       const code = convertToCode(message);
-                      playMyMorseCode(code);
-                      sendMorseCode(code, wpm);
+                      if (readyState !== ReadyState.OPEN) {
+                        setNotice(
+                          'Connection unavailable. Reconnect before sending a message.',
+                        );
+                        return false;
+                      }
+                      if (!playMyMorseCode(code)) return false;
+                      if (!sendCode(code, wpm)) {
+                        setNotice(
+                          'Connection unavailable. Your message played locally only.',
+                        );
+                        return false;
+                      }
+                      return true;
                     }}
                   ></MorseCodeInput>
                 </>
@@ -564,6 +511,11 @@ function App() {
             </div>
           )}
         </div>
+        {notice && (
+          <p role="status" className="text-center p-2">
+            {notice}
+          </p>
+        )}
         {debug && (
           <div>
             {!started && <button onClick={startAudio}>Join</button>}
@@ -571,6 +523,7 @@ function App() {
             <p>my operator id: {myOperatorId}</p>
             <p>lastMessage: {lastMessage?.data}</p>
             <p>remote oscillators: {remoteOscillatorIds.join(', ')}</p>
+            <p>playback: {playbackStats}</p>
           </div>
         )}
       </div>

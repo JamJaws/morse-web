@@ -3,7 +3,7 @@ import { FaPaperPlane } from 'react-icons/fa';
 import Warning from '../components/Warning';
 import { morseCodeCharacters } from './MorseCodeCharacters';
 
-const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
+const MorseCodeInput: React.FC<{ onSend: (message: string) => boolean }> = ({
   onSend,
 }) => {
   const [message, setMessage] = useState('');
@@ -30,8 +30,7 @@ const MorseCodeInput: React.FC<{ onSend: (message: string) => void }> = ({
 
   const handleSend = useCallback(() => {
     if (message.trim()) {
-      onSend(message.trim());
-      setMessage('');
+      if (onSend(message.trim())) setMessage('');
     }
   }, [message, onSend]);
 

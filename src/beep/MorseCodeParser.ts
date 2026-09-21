@@ -1,5 +1,5 @@
-import { wpmToDuration } from "./MorseCodeDuration";
-import { convertSpaces } from "./MorseCodeConverter";
+import { wpmToDuration } from './MorseCodeDuration';
+import { convertSpaces } from './MorseCodeConverter';
 
 type Beep = {
   start: number;
@@ -18,25 +18,28 @@ export const parseMorseCode = (
 ): Beeps => {
   const { dot, dash, space } = wpmToDuration(wpm);
   let time = startTime;
-  let lastChar: string = "";
+  let lastChar: string = '';
 
   const beeps = convertSpaces(morseCode)
-    .split("")
+    .split('')
     .reduce<Beep[]>((beeps, symbol) => {
-      if (lastChar === "." || lastChar === "-") {
+      if (
+        (lastChar === '.' || lastChar === '-') &&
+        (symbol === '.' || symbol === '-')
+      ) {
         time += dot; // Space between parts of the same letter
       }
       switch (symbol) {
-        case ".":
+        case '.':
           beeps.push({ start: time, stop: (time += dot) });
           break;
-        case "-":
+        case '-':
           beeps.push({ start: time, stop: (time += dash) });
           break;
-        case " ":
+        case ' ':
           time += dash;
           break;
-        case "/":
+        case '/':
           time += space;
           break;
       }
@@ -46,6 +49,6 @@ export const parseMorseCode = (
 
   return {
     beeps,
-    duration: time - startTime + (morseCode.includes("/") ? space : dash),
+    duration: time - startTime + (morseCode.includes('/') ? space : dash),
   };
 };
