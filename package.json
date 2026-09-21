@@ -25,7 +25,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20260307.1",
+    "@cloudflare/workers-types": "5.20260918.1",
     "@eslint/js": "9.39.2",
     "@tailwindcss/vite": "4.2.1",
     "@testing-library/react": "16.3.3",
