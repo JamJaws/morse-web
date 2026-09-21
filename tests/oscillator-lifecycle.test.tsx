@@ -40,7 +40,7 @@ describe('oscillator lifecycle', () => {
     await join();
     const oscillator = mocks.oscillators[0];
     const main = screen
-      .getByRole('button', { name: 'beep beep beep' })
+      .getByRole('button', { name: 'Morse key' })
       .closest('[tabindex]')!;
     fireEvent.keyDown(main, { key: ' ' });
     expect(oscillator.start).toHaveBeenCalledOnce();

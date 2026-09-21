@@ -31,7 +31,7 @@ async function join() {
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));
   });
   return screen
-    .getByRole('button', { name: 'beep beep beep' })
+    .getByRole('button', { name: 'Morse key' })
     .closest('[tabindex]')!;
 }
 function receive(message: object) {
