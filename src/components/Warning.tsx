@@ -1,5 +1,5 @@
-import React from "react";
-import { FaExclamationTriangle } from "react-icons/fa";
+import React from 'react';
+import { FaExclamationTriangle } from 'react-icons/fa';
 
 interface WarningProps {
   text: string;

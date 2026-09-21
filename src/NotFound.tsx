@@ -1,8 +1,6 @@
-import './NotFound.css';
-
 function NotFound() {
   return (
-    <div className="not-found">
+    <div className="flex min-h-dvh items-center justify-center">
       <p>....- ----- ....- / -. --- - / ..-. --- ..- -. -..</p>
     </div>
   );

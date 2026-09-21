@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(() => {
   return {
@@ -9,6 +10,6 @@ export default defineConfig(() => {
     server: {
       proxy: { '/beep': { target: 'http://127.0.0.1:8080', ws: true } },
     },
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
   };
 });

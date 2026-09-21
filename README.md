@@ -1,34 +1,45 @@
-# Morse code - Beep beep app
+# Morse code — Beep beep app
 
-[morse.jamjaws.com](https://morse.jamjaws.com)
+Live Morse code at [morse.jamjaws.com](https://morse.jamjaws.com).
 
-## Available Scripts
+The frontend uses React, TypeScript, Vite and Tailwind CSS v4. Audio is generated
+with Tone.js; a WebSocket connection carries transmissions between operators.
 
-In the project directory, you can run:
+## Development
 
-### `npm start`
+Use Node.js 22.12+ (CI uses Node 22) and npm:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```sh
+npm ci
+npm start
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Open the local URL printed by Vite, normally `http://localhost:5173`. The dev
+server proxies `/beep` WebSocket connections to the backend at
+`http://127.0.0.1:8080`. Without a backend, local tones still work after joining;
+remote transmissions need a connected backend.
 
-### `npm test`
+## Commands
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| Command                | Purpose                                               |
+| ---------------------- | ----------------------------------------------------- |
+| `npm test`             | Run the Vitest suite once                             |
+| `npm run test:watch`   | Re-run tests while developing                         |
+| `npm run typecheck`    | Check TypeScript types                                |
+| `npm run lint`         | Check ESLint rules                                    |
+| `npm run format`       | Format source, tests, configuration and documentation |
+| `npm run format:check` | Check formatting without changing files               |
+| `npm run build`        | Generate the production site in `build/`              |
+| `npm run serve`        | Preview the production build locally                  |
 
-### `npm run build`
+CI runs tests, type checking, formatting, linting and the production build.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Styling
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Tailwind runs through its Vite plugin. Shared theme values belong in the `@theme`
+block in `src/index.css`; ordinary styles use utilities in React components.
+There is no separate PostCSS or JavaScript Tailwind configuration.
 
 ## Playback and connection recovery
 
-See [the timing, rollout and pre-merge verification guide](docs/playback.md).
+See [the timing, rollout and verification guide](docs/playback.md).

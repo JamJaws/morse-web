@@ -1,5 +1,7 @@
 @import 'tailwindcss';
-@config "../tailwind.config.js";
+@theme {
+  --color-hint: #d7d3cb;
+}
 
 body {
   margin: 0;

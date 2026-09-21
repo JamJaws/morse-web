@@ -8,7 +8,6 @@ import React, {
 import * as Tone from 'tone';
 import { ReadyState } from 'react-use-websocket';
 import { useSearchParams } from 'react-router-dom';
-import styled from '@emotion/styled';
 import SettingsButton from './SettingsButton';
 import debounce from 'debounce';
 import { FaBroadcastTower, FaKeyboard } from 'react-icons/fa';
@@ -21,15 +20,6 @@ import { MAX_CODE_QUEUE_MS } from './beep/RemotePlayback';
 import { useMorseSocket } from './network/useMorseSocket';
 import type { Operator, ServerMessage } from './network/protocol';
 import Warning from './components/Warning';
-
-const Main = styled.div`
-  :focus {
-    outline: none;
-  }
-`;
-const Hint = styled.p`
-  color: #d7d3cb;
-`;
 
 function App() {
   const [searchParams] = useSearchParams();
@@ -365,7 +355,7 @@ function App() {
   const tx = searchParams.get('tx') === '' || searchParams.get('tx') === 'true';
 
   return (
-    <Main
+    <div
       className="bg-slate-800 text-white outline-none"
       ref={inputReference}
       onKeyDown={onKeyDown}
@@ -431,8 +421,10 @@ function App() {
               >
                 <p>beep beep beep</p>
               </button>
-              {!focused && <Hint>use mouse</Hint>}
-              {focused && <Hint>use mouse or spacebar space</Hint>}
+              {!focused && <p className="text-hint">use mouse</p>}
+              {focused && (
+                <p className="text-hint">use mouse or spacebar space</p>
+              )}
 
               {showKeys && (
                 <>
@@ -527,7 +519,7 @@ function App() {
           </div>
         )}
       </div>
-    </Main>
+    </div>
   );
 }
 
