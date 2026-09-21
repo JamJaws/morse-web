@@ -8,15 +8,20 @@ import { RemoteVoice } from '../beep/RemoteVoice';
 import { MAX_CODE_QUEUE_MS } from '../beep/RemotePlayback';
 import { useMorseSocket } from '../network/useMorseSocket';
 import type { Operator, ServerMessage } from '../network/protocol';
+import { usePreferences } from './usePreferences';
 
 /** Owns audio and network lifecycles independently of the page layout. */
 export function useMorseSession(debug = false) {
   const [started, setStarted] = useState(false);
   const startedRef = useRef(false);
-  const [volume, setVolume] = useState(80);
+  const { preferences, update } = usePreferences();
+  const { volume, wpm } = preferences;
+  const setVolume = (value: number) => update('volume', value);
+  const setWpm = (value: number) => update('wpm', value);
+  const [muted, setMuted] = useState(false);
+  const effectiveVolume = muted ? 0 : volume;
   const volumeRef = useRef(volume);
-  volumeRef.current = volume;
-  const [wpm, setWpm] = useState(20);
+  volumeRef.current = effectiveVolume;
   const [notice, setNotice] = useState('');
   const transmittingRef = useRef(false);
   const [transmitting, setTransmitting] = useState(false);
@@ -28,10 +33,12 @@ export function useMorseSession(debug = false) {
   const timeRef = useRef(0);
   const [myOperatorId, setMyOperatorId] = useState<string>();
   const myIdRef = useRef<string | undefined>(undefined);
-  const [myFrequency, setMyFrequency] = useState(800);
+  const [myFrequency, setMyFrequency] = useState(preferences.frequency ?? 800);
   const frequencyRef = useRef(myFrequency);
   frequencyRef.current = myFrequency;
-  const preferredFrequency = useRef<number | undefined>(undefined);
+  const preferredFrequency = useRef<number | undefined>(
+    preferences.frequency ?? undefined,
+  );
   const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
 
   const resetLocalAudio = useCallback(() => {
@@ -58,9 +65,9 @@ export function useMorseSession(debug = false) {
   useEffect(() => {
     myOscillator.current?.set({
       frequency: myFrequency,
-      volume: Tone.gainToDb(volume / 100),
+      volume: Tone.gainToDb(effectiveVolume / 100),
     });
-  }, [started, myFrequency, volume]);
+  }, [started, myFrequency, effectiveVolume]);
 
   const syncVoices = useCallback(() => {
     const voices = voicesRef.current;
@@ -86,7 +93,7 @@ export function useMorseSession(debug = false) {
   }, []);
   useEffect(() => {
     syncVoices();
-  }, [started, volume, syncVoices]);
+  }, [started, effectiveVolume, syncVoices]);
   useEffect(() => {
     const voices = voicesRef.current;
     const ticker = setInterval(() => {
@@ -166,6 +173,7 @@ export function useMorseSession(debug = false) {
       if (context.state !== 'running' && startedRef.current) {
         startedRef.current = false;
         setStarted(false);
+        setNotice('Audio paused by your browser. Join again to resume.');
         reconnect();
       }
     };
@@ -176,6 +184,7 @@ export function useMorseSession(debug = false) {
   }, [reconnect]);
   const playMyMorseCode = useCallback(
     (code: string) => {
+      if (!startedRef.current) return false;
       if (transmittingRef.current) {
         setNotice('Release the key before sending a message.');
         return false;
@@ -203,10 +212,33 @@ export function useMorseSession(debug = false) {
     },
     [wpm],
   );
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const startAudio = useCallback(async () => {
-    await Tone.start();
-    startedRef.current = true;
-    setStarted(true);
+    if (startingRef.current || startedRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    try {
+      await Tone.start();
+      if (mounted.current) {
+        startedRef.current = true;
+        setStarted(true);
+        setNotice('');
+      }
+    } catch {
+      if (mounted.current)
+        setNotice('Could not enable audio. Please try joining again.');
+    } finally {
+      startingRef.current = false;
+      if (mounted.current) setStarting(false);
+    }
   }, []);
 
   const debouncedSendFrequency = useMemo(
@@ -219,11 +251,12 @@ export function useMorseSession(debug = false) {
 
   const changeFrequency = useCallback(
     (frequency: number) => {
+      update('frequency', frequency);
       preferredFrequency.current = frequency;
       setMyFrequency(frequency);
       debouncedSendFrequency(frequency);
     },
-    [debouncedSendFrequency],
+    [debouncedSendFrequency, update],
   );
 
   const start = useCallback(() => {
@@ -278,7 +311,10 @@ export function useMorseSession(debug = false) {
 
   return {
     started,
+    starting,
     startAudio,
+    muted,
+    toggleMute: () => setMuted(current => !current),
     transmitting,
     start,
     stop,

@@ -176,7 +176,7 @@ it('measures correlated RTT and closes a persistently backed-up native socket', 
     vi.advanceTimersByTime(125);
     receive({ type: 'PONG', id: ping.id });
   });
-  expect(screen.getByRole('tooltip').textContent).toContain('125 ms');
+  expect(screen.getByText('125 ms round-trip latency')).toBeDefined();
   act(() => {
     mocks.socket.bufferedAmount = 10;
     vi.advanceTimersByTime(1_125);
@@ -228,7 +228,7 @@ it('disconnects all queued local marks when manual keying interrupts typed playb
   fireEvent.change(screen.getByLabelText('Message'), {
     target: { value: 'SOS' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   const typedVoice = mocks.oscillators[0];
   expect(typedVoice.start).toHaveBeenCalledTimes(9);
   fireEvent.keyDown(main, { key: ' ' });
@@ -245,7 +245,7 @@ it('disposes queued local playback on disconnect and retains unsent input', asyn
   fireEvent.change(screen.getByLabelText('Message'), {
     target: { value: 'SOS' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   act(() => {
     mocks.socket.readyState = 3;
     mocks.onClose?.();
@@ -254,7 +254,7 @@ it('disposes queued local playback on disconnect and retains unsent input', asyn
   fireEvent.change(screen.getByLabelText('Message'), {
     target: { value: 'WAIT' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   expect((screen.getByLabelText('Message') as HTMLInputElement).value).toBe(
     'WAIT',
   );
@@ -298,7 +298,7 @@ it('sends whole-millisecond KEY and CODE timestamps from the monotonic clock', a
     fireEvent.change(screen.getByLabelText('Message'), {
       target: { value: 'E' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(messages('KEY').map(m => m.timestamp)).toEqual([100, 160]);
     expect(messages('CODE')[0].timestamp).toBe(201);
   } finally {

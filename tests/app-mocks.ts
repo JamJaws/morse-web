@@ -33,6 +33,7 @@ export const mocks = (() => {
     socket: { readyState: 1, bufferedAmount: 0, close: vi.fn() },
     context: { state: 'running', on: vi.fn(), off: vi.fn() },
     sendMessage: vi.fn(),
+    startAudio: vi.fn().mockResolvedValue(undefined),
     onOpen: undefined as (() => void) | undefined,
     onClose: undefined as (() => void) | undefined,
     onMessage: undefined as
@@ -57,7 +58,7 @@ vi.mock('tone', () => ({
   now: () => 100 + performance.now() / 1_000,
   immediate: () => 99.9 + performance.now() / 1_000,
   getContext: () => mocks.context,
-  start: vi.fn().mockResolvedValue(undefined),
+  start: mocks.startAudio,
   gainToDb: (gain: number) => 20 * Math.log10(gain),
 }));
 
@@ -93,6 +94,7 @@ vi.mock('react-use-websocket', () => {
 });
 export function resetMocks() {
   vi.clearAllMocks();
+  localStorage.clear();
   mocks.oscillators.length = 0;
   mocks.gains.length = 0;
   mocks.onMessage = undefined;

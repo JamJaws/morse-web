@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { ReadyState } from 'react-use-websocket';
 import { useSearchParams } from 'react-router-dom';
-import { FaBroadcastTower, FaKeyboard } from 'react-icons/fa';
-import SettingsButton from './SettingsButton';
+import {
+  FaBroadcastTower,
+  FaKeyboard,
+  FaSlidersH,
+  FaVolumeMute,
+  FaVolumeUp,
+} from 'react-icons/fa';
 import MorseCodeTable from './beep/MorseCodeTable';
 import MorseCodeInput from './beep/MorseCodeInput';
-import Warning from './components/Warning';
 import { MorseKey } from './components/MorseKey';
 import { DebugPanel } from './components/DebugPanel';
+import { ConnectionStatus } from './components/ConnectionStatus';
+import { SettingsPanel } from './components/SettingsPanel';
+import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
 import { useMorseKey } from './hooks/useMorseKey';
 
@@ -15,167 +22,229 @@ function App() {
   const [searchParams] = useSearchParams();
   const debug =
     searchParams.get('debug') === '' || searchParams.get('debug') === 'true';
-  const tx = searchParams.get('tx') === '' || searchParams.get('tx') === 'true';
   const session = useMorseSession(debug);
   const [showSettings, setShowSettings] = useState(false);
-  const [showKeys, setShowKeys] = useState(false);
+  const [panel, setPanel] = useState<'reference' | 'message' | null>(() =>
+    searchParams.get('tx') === '' || searchParams.get('tx') === 'true'
+      ? 'message'
+      : null,
+  );
   const input = useMorseKey(
     session.started && !showSettings,
     session.start,
     session.stop,
   );
-  const connectionColor = {
-    [ReadyState.CONNECTING]: 'yellow',
-    [ReadyState.OPEN]: 'green',
-    [ReadyState.CLOSING]: 'red',
-    [ReadyState.CLOSED]: 'black',
-    [ReadyState.UNINSTANTIATED]: 'gray',
-  }[session.readyState];
+  const connected = session.readyState === ReadyState.OPEN;
 
   return (
-    <main
-      className="bg-slate-800 text-white focus-visible:outline-2 focus-visible:outline-blue-400"
+    <div
+      className="flex min-h-dvh flex-col bg-canvas text-ink focus-visible:outline-2 focus-visible:outline-accent"
       onKeyDown={input.onKeyDown}
       onBlur={input.cancel}
-      tabIndex={0}
+      tabIndex={-1}
     >
-      <div className="min-h-screen flex flex-col">
-        <div className="w-full flex justify-between items-center py-2 px-4">
-          <div className="flex items-center justify-center gap-4">
-            <div className="relative flex items-center group">
-              <span
-                className="w-4 h-4 rounded-full"
-                style={{ backgroundColor: connectionColor }}
-              />
-              {session.readyState === ReadyState.OPEN && (
-                <div
-                  role="tooltip"
-                  className="absolute z-10 invisible inline-block px-3 py-1.5 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 group-hover:visible group-hover:opacity-100 top-full mt-2 whitespace-nowrap"
-                >
-                  {session.latency} ms
-                </div>
-              )}
-            </div>
-            <p className="text-gray-300">
-              {(session.readyState === ReadyState.OPEN &&
-                session.operators.length) ||
-                '~'}
-            </p>
-          </div>
-          <div className="flex items-stretch gap-2">
-            {session.started && (
-              <button
-                type="button"
-                aria-label="Morse reference"
-                aria-expanded={showKeys}
-                aria-controls="morse-reference"
-                onClick={() => setShowKeys(!showKeys)}
-                className="flex aspect-square min-w-10 items-center justify-center text-gray-400 p-2 gap-2 rounded hover:bg-gray-600 focus-visible:outline-2 focus-visible:outline-blue-400"
-              >
-                <FaKeyboard aria-hidden="true" />
-              </button>
-            )}
-            <SettingsButton
-              expanded={showSettings}
-              onClick={() => setShowSettings(!showSettings)}
+      <header className="relative z-10 border-b border-stroke/60">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <FaBroadcastTower
+              aria-hidden="true"
+              className="text-xl text-accent"
             />
+            <h1 className="text-xl font-semibold tracking-tight">
+              Morse<span className="text-accent">.</span>
+            </h1>
+          </div>
+          <div
+            role="group"
+            aria-label="Session controls"
+            className="flex flex-wrap items-center gap-1 sm:gap-2"
+          >
+            <ConnectionStatus
+              readyState={session.readyState}
+              operators={session.operators.length}
+              latency={session.latency}
+            />
+            {session.started && (
+              <Button
+                variant="ghost"
+                aria-label={session.muted ? 'Unmute sound' : 'Mute sound'}
+                onClick={session.toggleMute}
+              >
+                {session.muted ? (
+                  <FaVolumeMute aria-hidden="true" />
+                ) : (
+                  <FaVolumeUp aria-hidden="true" />
+                )}
+                <span>{session.muted ? 'Unmute' : 'Mute'}</span>
+              </Button>
+            )}
+            <Button
+              variant={showSettings ? 'secondary' : 'ghost'}
+              aria-expanded={showSettings}
+              aria-controls="settings"
+              onClick={() => setShowSettings(current => !current)}
+            >
+              <FaSlidersH aria-hidden="true" />
+              <span>Settings</span>
+            </Button>
           </div>
         </div>
-        <div className="flex flex-col items-center justify-center grow my-4">
-          {!session.started && !showSettings && (
-            <div className="flex flex-col items-center justify-center gap-2">
-              <button
-                type="button"
-                className="bg-gray-300 text-gray-800 text-lg rounded-full px-4 py-2 hover:bg-gray-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 flex items-center gap-2"
-                onClick={session.startAudio}
+      </header>
+      <main className="mx-auto flex w-full max-w-5xl grow flex-col justify-center px-4 py-8 sm:px-6 sm:py-12">
+        {showSettings ? (
+          <SettingsPanel
+            session={session}
+            onClose={() => setShowSettings(false)}
+          />
+        ) : (
+          <>
+            {!session.started ? (
+              <section
+                className="mx-auto flex max-w-lg flex-col items-center py-12 text-center sm:py-16"
+                aria-labelledby="welcome-heading"
               >
-                <FaBroadcastTower aria-hidden="true" />
-                <span>Join</span>
-              </button>
-              <Warning text="You may hear tones when pressing the button" />
-            </div>
-          )}
-          {session.started && !showSettings && (
-            <>
-              <MorseKey transmitting={session.transmitting} input={input} />
-              <p id="morse-key-help" className="text-hint">
-                Hold to transmit · Space or Enter on the key
-              </p>
-              {showKeys && (
-                <section id="morse-reference" className="mt-16">
-                  <MorseCodeTable
-                    onClick={character =>
-                      session.playMyMorseCode(character.code)
+                <p className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-accent">
+                  Live Morse channel
+                </p>
+                <h2
+                  id="welcome-heading"
+                  className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl"
+                >
+                  A conversation in
+                  <br />
+                  dots and dashes.
+                </h2>
+                <p className="mt-6 max-w-sm text-base leading-relaxed text-muted">
+                  Hear other operators and send your own signal. All you need is
+                  a key and a little curiosity.
+                </p>
+                <Button
+                  variant="primary"
+                  className="mt-8"
+                  onClick={session.startAudio}
+                  disabled={session.starting}
+                >
+                  <FaBroadcastTower aria-hidden="true" />
+                  {session.starting ? 'Enabling sound…' : 'Join'}
+                </Button>
+                <p className="mt-4 text-sm text-muted">
+                  Joining enables sound. You can adjust the volume in Settings.
+                </p>
+              </section>
+            ) : (
+              <section
+                className="flex flex-col items-center text-center"
+                aria-label="Morse transmitter"
+              >
+                <p className="mb-6 font-mono text-xs uppercase tracking-[0.18em] text-muted">
+                  {session.myFrequency} Hz <span aria-hidden="true">/</span>{' '}
+                  {session.muted || session.volume === 0
+                    ? 'Sound off'
+                    : 'Sound on'}
+                </p>
+                <MorseKey
+                  transmitting={session.transmitting}
+                  connected={connected}
+                  input={input}
+                />
+                <p
+                  id="morse-key-help"
+                  className="mt-6 text-sm leading-relaxed text-muted"
+                >
+                  Hold the key with your mouse or touch.
+                  <br />
+                  Use <kbd className="font-mono text-ink">Space</kbd> or{' '}
+                  <kbd className="font-mono text-ink">Enter</kbd> when the key
+                  is focused.
+                </p>
+                {!connected && (
+                  <p className="mt-3 text-sm text-warning">
+                    Local practice only while reconnecting.
+                  </p>
+                )}
+                <div className="mt-8 flex flex-wrap justify-center gap-3">
+                  <Button
+                    aria-expanded={panel === 'reference'}
+                    aria-controls="morse-reference"
+                    onClick={() =>
+                      setPanel(current =>
+                        current === 'reference' ? null : 'reference',
+                      )
                     }
-                  />
-                </section>
-              )}
-              {tx && (
-                <div className="mt-16 w-full flex justify-center">
-                  <MorseCodeInput onSend={session.sendText} />
+                  >
+                    Morse reference
+                  </Button>
+                  <Button
+                    aria-expanded={panel === 'message'}
+                    aria-controls="morse-message"
+                    onClick={() =>
+                      setPanel(current =>
+                        current === 'message' ? null : 'message',
+                      )
+                    }
+                  >
+                    <FaKeyboard aria-hidden="true" />
+                    Type a message
+                  </Button>
                 </div>
-              )}
-            </>
-          )}
-          {showSettings && (
-            <section
-              id="settings"
-              aria-label="Settings"
-              className="w-2/3 sm:w-1/2 md:w-1/3 flex flex-col gap-2"
-            >
-              <div className="flex flex-col">
-                <label htmlFor="volume">Volume</label>
-                <input
-                  id="volume"
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={session.volume}
-                  onChange={event =>
-                    session.setVolume(Number(event.target.value))
-                  }
-                  onPointerUp={session.previewTone}
-                />
-                <span className="self-center">{session.volume}</span>
-              </div>
-              <div className="flex flex-col">
-                <label htmlFor="frequency">Frequency</label>
-                <input
-                  id="frequency"
-                  type="range"
-                  min="400"
-                  max="1000"
-                  value={session.myFrequency}
-                  onChange={event =>
-                    session.changeFrequency(Number(event.target.value))
-                  }
-                  onPointerUp={session.previewTone}
-                />
-                <span className="self-center">{session.myFrequency}</span>
-              </div>
-              <div className="flex flex-col">
-                <label htmlFor="wpm">WPM</label>
-                <input
-                  id="wpm"
-                  type="range"
-                  min="4"
-                  max="40"
-                  value={session.wpm}
-                  onChange={event => session.setWpm(Number(event.target.value))}
-                />
-                <span className="self-center">{session.wpm}</span>
-              </div>
-            </section>
-          )}
-        </div>
-        {session.notice && (
-          <p role="status" className="text-center p-2">
-            {session.notice}
-          </p>
+              </section>
+            )}
+          </>
         )}
-        {debug && <DebugPanel session={session} />}
-      </div>
-    </main>
+        {session.started && (
+          <div className="w-full">
+            <section
+              id="morse-reference"
+              hidden={showSettings || panel !== 'reference'}
+              aria-labelledby="reference-heading"
+              className="mt-8 rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+            >
+              <h2
+                id="reference-heading"
+                className="text-xl font-semibold tracking-tight"
+              >
+                Morse reference
+              </h2>
+              <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
+                Tap a character to hear it locally at {session.wpm} WPM.
+                Reference tones are not broadcast.
+              </p>
+              <MorseCodeTable
+                onClick={character => session.playMyMorseCode(character.code)}
+              />
+            </section>
+            <section
+              id="morse-message"
+              hidden={showSettings || panel !== 'message'}
+              aria-labelledby="message-heading"
+              className="mx-auto mt-8 max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+            >
+              <h2
+                id="message-heading"
+                className="mb-4 text-xl font-semibold tracking-tight"
+              >
+                Send a message
+              </h2>
+              <MorseCodeInput
+                onSend={session.sendText}
+                connected={connected}
+                wpm={session.wpm}
+              />
+            </section>
+          </div>
+        )}
+        <p
+          role="status"
+          className="mx-auto mt-6 max-w-xl text-center text-sm leading-relaxed text-warning"
+        >
+          {session.notice}
+        </p>
+      </main>
+      <footer className="px-4 pb-6 text-center text-xs text-muted">
+        One channel. Many voices. Keep it friendly.
+      </footer>
+      {debug && <DebugPanel session={session} />}
+    </div>
   );
 }
 

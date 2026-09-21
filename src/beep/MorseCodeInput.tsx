@@ -1,73 +1,80 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
-import Warning from '../components/Warning';
+import { Button } from '../components/ui/Button';
 import { morseCodeCharacters } from './MorseCodeCharacters';
 
-const MorseCodeInput: React.FC<{ onSend: (message: string) => boolean }> = ({
+const supportedCharacters = new Set(
+  morseCodeCharacters.map(character => character.letter),
+);
+
+export default function MorseCodeInput({
   onSend,
-}) => {
+  connected,
+  wpm,
+}: {
+  onSend: (message: string) => boolean;
+  connected: boolean;
+  wpm: number;
+}) {
   const [message, setMessage] = useState('');
-
-  const unknownCharacters = useMemo(() => {
-    const unknownChars = new Set(
-      message
-        .split('')
-        .filter(char => char !== ' ')
-        .filter(
-          char =>
-            !morseCodeCharacters.some(
-              morseCodeCharacter =>
-                morseCodeCharacter.letter === char.toUpperCase(),
-            ),
+  const unknownCharacters = useMemo(
+    () =>
+      [
+        ...new Set(
+          [...message].filter(
+            char =>
+              char !== ' ' && !supportedCharacters.has(char.toUpperCase()),
+          ),
         ),
-    );
-    return Array.from(unknownChars).join('');
-  }, [message]);
-
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(event.target.value);
-  };
-
-  const handleSend = useCallback(() => {
-    if (message.trim()) {
-      if (onSend(message.trim())) setMessage('');
-    }
-  }, [message, onSend]);
-
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSend();
-    }
-  };
-
+      ].join(''),
+    [message],
+  );
   return (
-    <div className="flex flex-col gap-2 w-full sm:w-3/4 md:w-2/3 lg:w-1/2">
-      <label htmlFor="morse-code-input">Message</label>
-      <div className="flex items-center bg-white p-1 border rounded-lg">
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        if (message.trim() && onSend(message.trim())) setMessage('');
+      }}
+      className="space-y-3"
+    >
+      <label htmlFor="morse-code-input" className="block text-sm font-medium">
+        Message
+      </label>
+      <div className="flex flex-wrap gap-3">
         <input
           id="morse-code-input"
           type="text"
-          className="flex-grow p-2 outline-none text-black"
           autoComplete="off"
-          placeholder="Type your message..."
+          placeholder="Try CQ or HELLO…"
+          maxLength={2048}
           value={message}
-          onChange={handleChange}
-          onKeyUp={handleKeyPress}
+          aria-describedby={`message-help${unknownCharacters ? ' message-warning' : ''}`}
+          onChange={event => setMessage(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter' && event.nativeEvent.isComposing)
+              event.preventDefault();
+          }}
+          className="min-h-11 min-w-0 flex-1 rounded-xl border border-stroke bg-canvas px-4 py-2 text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         />
-        <button
-          className="flex items-center gap-2 p-2 bg-blue-500 transition duration-300 ease-in-out hover:bg-blue-700 text-white rounded-lg"
-          onClick={handleSend}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!connected || !message.trim()}
         >
-          <span>TX</span>
-          <FaPaperPlane />
-        </button>
+          <FaPaperPlane aria-hidden="true" />
+          <span>Send</span>
+        </Button>
       </div>
-      {unknownCharacters.length > 0 && (
-        <Warning text={`Unknown characters: ${unknownCharacters}`} />
+      <p id="message-help" className="text-sm leading-relaxed text-muted">
+        {connected
+          ? `Broadcasts your message as Morse at ${wpm} WPM. Press Enter to send.`
+          : 'Reconnecting. Your draft will stay here until you can send it.'}
+      </p>
+      {unknownCharacters && (
+        <p id="message-warning" className="text-sm text-warning">
+          Unsupported characters will be skipped: {unknownCharacters}
+        </p>
       )}
-    </div>
+    </form>
   );
-};
-
-export default MorseCodeInput;
+}

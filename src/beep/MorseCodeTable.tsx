@@ -1,63 +1,49 @@
-import React from 'react';
-import { MorseCodeCharacter } from './MorseCodeCharacter';
+import type { MorseCodeCharacter } from './MorseCodeCharacter';
 import { morseCodeCharacters } from './MorseCodeCharacters';
+import { Button } from '../components/ui/Button';
 
-type MorseCodeTablePros = {
-  onClick?: (code: MorseCodeCharacter) => void;
-};
+const groups = [
+  { type: 'letter', label: 'Letters' },
+  { type: 'number', label: 'Numbers' },
+  { type: 'punctuation', label: 'Punctuation' },
+] as const;
 
-type GroupedMorseCodeCharacters = Record<
-  'letter' | 'number' | 'punctuation',
-  MorseCodeCharacter[]
->;
-
-const capitalizeFirstLetter = (str: string): string => {
-  if (!str) {
-    return '';
-  }
-  return str.charAt(0).toUpperCase() + str.slice(1);
-};
-
-const MorseCodeTable: React.FC<MorseCodeTablePros> = ({
-  onClick = () => {},
-}) => {
-  const groupedCharacters =
-    morseCodeCharacters.reduce<GroupedMorseCodeCharacters>(
-      (acc, character) => {
-        if (!acc[character.type]) {
-          acc[character.type] = [];
-        }
-        acc[character.type].push(character);
-        return acc;
-      },
-      { letter: [], number: [], punctuation: [] },
-    );
+export default function MorseCodeTable({
+  onClick,
+}: {
+  onClick: (character: MorseCodeCharacter) => void;
+}) {
   return (
-    <div className="flex flex-col gap-2 container bg-gray-900 p-1 rounded">
-      {Object.entries(groupedCharacters).map(([group, characters]) => (
-        <div key={group}>
-          <h2 className="text-lg font-bold">{capitalizeFirstLetter(group)}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-0.5">
-            {characters.map((character: MorseCodeCharacter) => (
-              <button
-                key={character.letter}
-                onClick={() => onClick(character)}
-                className="flex bg-slate-700 p-4 rounded gap-3 transition duration-300 ease-in-out hover:bg-slate-600 hover:shadow-lg"
-              >
-                <span>{character.letter}</span>
-                <span>
-                  {character.code
+    <div className="space-y-6">
+      {groups.map(group => (
+        <div key={group.type}>
+          <h3 className="mb-3 text-sm font-medium text-muted">{group.label}</h3>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {morseCodeCharacters
+              .filter(character => character.type === group.type)
+              .map(character => (
+                <Button
+                  key={character.letter}
+                  onClick={() => onClick(character)}
+                  aria-label={`Play ${character.letter} locally: ${character.code
                     .split('')
-                    .map(char => (char === '.' ? '•' : '—'))
-                    .join(' ')}
-                </span>
-              </button>
-            ))}
+                    .map(char => (char === '.' ? 'dot' : 'dash'))
+                    .join(' ')}`}
+                >
+                  <span className="flex w-full items-center justify-between gap-2 font-mono">
+                    <span>{character.letter}</span>
+                    <span aria-hidden="true" className="text-accent">
+                      {character.code
+                        .split('')
+                        .map(char => (char === '.' ? '•' : '—'))
+                        .join(' ')}
+                    </span>
+                  </span>
+                </Button>
+              ))}
           </div>
         </div>
       ))}
     </div>
   );
-};
-
-export default MorseCodeTable;
+}
