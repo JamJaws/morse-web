@@ -115,8 +115,7 @@ function App() {
                   dots and dashes.
                 </h2>
                 <p className="mt-6 max-w-sm text-base leading-relaxed text-muted">
-                  Hear other operators and send your own signal. All you need is
-                  a key and a little curiosity.
+                  Listen and transmit in Morse.
                 </p>
                 <Button
                   variant="primary"
@@ -240,9 +239,6 @@ function App() {
           {session.notice}
         </p>
       </main>
-      <footer className="px-4 pb-6 text-center text-xs text-muted">
-        One channel. Many voices. Keep it friendly.
-      </footer>
       {debug && <DebugPanel session={session} />}
     </div>
   );

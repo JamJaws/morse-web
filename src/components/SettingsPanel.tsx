@@ -23,7 +23,7 @@ export function SettingsPanel({
             id="settings-heading"
             className="text-2xl font-semibold tracking-tight"
           >
-            Make it sound like you
+            Audio settings
           </h2>
           <p className="mt-2 text-sm text-muted">
             Preferences are saved on this device when browser storage is

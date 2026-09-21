@@ -39,7 +39,7 @@ export function MorseKey({ transmitting, connected, input }: MorseKeyProps) {
         aria-hidden="true"
         className="font-mono text-xs uppercase tracking-[0.2em] text-muted group-data-[transmitting=true]:text-accent-ink"
       >
-        {transmitting ? 'Key down' : 'Ready when you are'}
+        {transmitting ? 'Key down' : 'Ready'}
       </span>
     </button>
   );
