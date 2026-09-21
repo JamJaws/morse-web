@@ -1,19 +1,19 @@
-import React from "react";
-import { MorseCodeCharacter } from "./MorseCodeCharacter";
-import { morseCodeCharacters } from "./MorseCodeCharacters";
+import React from 'react';
+import { MorseCodeCharacter } from './MorseCodeCharacter';
+import { morseCodeCharacters } from './MorseCodeCharacters';
 
 type MorseCodeTablePros = {
   onClick?: (code: MorseCodeCharacter) => void;
 };
 
 type GroupedMorseCodeCharacters = Record<
-  "letter" | "number" | "punctuation",
+  'letter' | 'number' | 'punctuation',
   MorseCodeCharacter[]
 >;
 
 const capitalizeFirstLetter = (str: string): string => {
   if (!str) {
-    return "";
+    return '';
   }
   return str.charAt(0).toUpperCase() + str.slice(1);
 };
@@ -47,9 +47,9 @@ const MorseCodeTable: React.FC<MorseCodeTablePros> = ({
                 <span>{character.letter}</span>
                 <span>
                   {character.code
-                    .split("")
-                    .map((char) => (char === "." ? "•" : "—"))
-                    .join(" ")}
+                    .split('')
+                    .map(char => (char === '.' ? '•' : '—'))
+                    .join(' ')}
                 </span>
               </button>
             ))}

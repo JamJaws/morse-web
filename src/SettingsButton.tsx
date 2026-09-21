@@ -1,5 +1,5 @@
-import React from "react";
-import { FaCog } from "react-icons/fa";
+import React from 'react';
+import { FaCog } from 'react-icons/fa';
 
 interface SettingsButtonProps {
   onClick: () => void;
