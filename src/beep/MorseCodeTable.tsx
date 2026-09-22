@@ -32,11 +32,16 @@ export default function MorseCodeTable({
                 >
                   <span className="flex w-full items-center justify-between gap-2 font-mono">
                     <span>{character.letter}</span>
-                    <span aria-hidden="true" className="text-accent">
-                      {character.code
-                        .split('')
-                        .map(char => (char === '.' ? '•' : '—'))
-                        .join(' ')}
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex shrink-0 items-center gap-1.5 text-accent"
+                    >
+                      {character.code.split('').map((char, index) => (
+                        <span
+                          key={index}
+                          className={`h-1 rounded-full bg-current ${char === '.' ? 'w-1' : 'w-3'}`}
+                        />
+                      ))}
                     </span>
                   </span>
                 </Button>
