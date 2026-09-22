@@ -121,12 +121,16 @@ it('plays reference characters locally without broadcasting them', async () => {
 it('exposes connection details to keyboard users without keying the transmitter', async () => {
   openApp();
   await join();
-  const summary = screen.getByText('Connected').closest('summary')!;
-  fireEvent.keyDown(summary, { key: ' ' });
-  fireEvent.keyUp(summary, { key: ' ' });
+  const trigger = screen.getByRole('button', {
+    name: 'Connection details: Connected',
+  });
+  fireEvent.focus(trigger);
+  fireEvent.keyDown(trigger, { key: ' ' });
+  fireEvent.keyUp(trigger, { key: ' ' });
   expect(sentCommands()).toEqual([]);
-  expect(within(summary.parentElement!).getByText('Measuring…')).toBeDefined();
-  expect(summary.parentElement!.textContent).not.toContain('null ms');
+  const panel = screen.getByRole('group', { name: 'Connection details' });
+  expect(within(panel).getByText('Measuring…')).toBeDefined();
+  expect(panel.textContent).not.toContain('null ms');
 });
 
 it('allows retry after audio activation fails', async () => {

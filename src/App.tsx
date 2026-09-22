@@ -50,9 +50,7 @@ function App() {
               aria-hidden="true"
               className="text-xl text-accent"
             />
-            <h1 className="text-xl font-semibold tracking-tight">
-              Morse<span className="text-accent">.</span>
-            </h1>
+            <h1 className="text-xl font-semibold tracking-tight">Morse</h1>
           </div>
           <div
             role="group"

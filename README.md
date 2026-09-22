@@ -51,8 +51,9 @@ Space/Enter when the key has focus. Releasing, losing focus, switching tabs or
 losing pointer capture ends the tone. When disconnected, manual keying still
 plays locally and the interface shows that it is local practice.
 
-Open the connection status for the operator count and measured round-trip
-latency. Mute affects local and incoming sound without changing the saved volume.
+Hover or focus the connection status to preview operator count and latency.
+Click or tap to keep it open; click again, click outside, or press Escape to close.
+Mute affects local and incoming sound without changing the saved volume.
 Volume, a manually chosen frequency, and WPM are stored on the current device;
 blocked browser storage falls back to session-only settings. WPM controls typed
 messages and reference playback, not the timing of a manually held key.
