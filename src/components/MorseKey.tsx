@@ -2,10 +2,11 @@ import type { useMorseKey } from '../hooks/useMorseKey';
 
 type MorseKeyProps = {
   transmitting: boolean;
+  connected: boolean;
   input: ReturnType<typeof useMorseKey>;
 };
 
-export function MorseKey({ transmitting, input }: MorseKeyProps) {
+export function MorseKey({ transmitting, connected, input }: MorseKeyProps) {
   return (
     <button
       type="button"
@@ -14,12 +15,26 @@ export function MorseKey({ transmitting, input }: MorseKeyProps) {
       aria-label="Morse key"
       aria-describedby="morse-key-help"
       data-transmitting={transmitting}
-      className="text-[calc(12px+2vmin)] bg-slate-700 aspect-square min-w-[80vmin] sm:min-w-[65vmin] md:min-w-[50vmin] rounded-3xl gap-3 touch-none select-none hover:bg-slate-600 data-[transmitting=true]:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-400"
+      className="group flex aspect-square w-[min(100%,24rem,65svh)] touch-none select-none flex-col items-center justify-center gap-6 rounded-[2rem] border border-stroke bg-surface text-ink shadow-lg hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent data-[transmitting=true]:border-accent data-[transmitting=true]:bg-accent data-[transmitting=true]:text-accent-ink"
       onPointerDown={input.onPointerDown}
       onLostPointerCapture={input.onLostPointerCapture}
       onContextMenu={event => event.preventDefault()}
     >
-      <span>{transmitting ? 'Transmitting' : 'beep beep beep'}</span>
+      <span
+        aria-hidden="true"
+        className="flex items-center gap-3 text-accent group-data-[transmitting=true]:text-accent-ink"
+      >
+        <span className="size-4 rounded-full bg-current" />
+        <span className="h-4 w-12 rounded-full bg-current" />
+        <span className="size-4 rounded-full bg-current" />
+      </span>
+      <span className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        {transmitting
+          ? connected
+            ? 'Transmitting'
+            : 'Local tone'
+          : 'Hold to transmit'}
+      </span>
     </button>
   );
 }

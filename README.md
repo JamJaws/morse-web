@@ -43,3 +43,22 @@ There is no separate PostCSS or JavaScript Tailwind configuration.
 ## Playback and connection recovery
 
 See [the timing, rollout and verification guide](docs/playback.md).
+
+## Using the app
+
+Joining enables audio. Hold the Morse key with a mouse, touch or pen, or hold
+Space/Enter when the key has focus. Releasing, losing focus, switching tabs or
+losing pointer capture ends the tone. When disconnected, manual keying still
+plays locally and the interface shows that it is local practice.
+
+Hover or focus the connection status to preview operator count and latency.
+Click or tap to keep it open; click again, click outside, or press Escape to close.
+Mute affects local and incoming sound without changing the saved volume.
+Volume, a manually chosen frequency, and WPM are stored on the current device;
+blocked browser storage falls back to session-only settings. WPM controls typed
+messages and reference playback, not the timing of a manually held key.
+
+The Morse reference plays locally. **Type a message** broadcasts supported
+characters and keeps drafts while switching panels or reconnecting. The `?tx`
+URL shortcut opens that panel initially. `?debug` enables playback diagnostics;
+statistics are not sampled otherwise.

@@ -72,7 +72,7 @@ describe('oscillator lifecycle', () => {
     fireEvent.change(screen.getByLabelText('Message'), {
       target: { value: 'SOS' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'TX' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     const scheduledStarts = [...oscillator.start.mock.calls];
     expect(scheduledStarts).toHaveLength(9);
 

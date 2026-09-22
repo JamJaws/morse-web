@@ -70,7 +70,7 @@ export function useMorseKey(
     if (
       !isKey &&
       target.closest(
-        'input, textarea, select, button, a, [role="button"], [contenteditable]:not([contenteditable="false"])',
+        'input, textarea, select, button, a, summary, [role="button"], [contenteditable]:not([contenteditable="false"])',
       )
     )
       return;
