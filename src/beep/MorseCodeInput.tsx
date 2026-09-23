@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { Ref } from 'react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { Button } from '../components/ui/Button';
 import { morseCodeCharacters } from './MorseCodeCharacters';
@@ -11,10 +12,12 @@ export default function MorseCodeInput({
   onSend,
   connected,
   wpm,
+  inputRef,
 }: {
   onSend: (message: string) => boolean;
   connected: boolean;
   wpm: number;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   const [message, setMessage] = useState('');
   const unknownCharacters = useMemo(
@@ -42,6 +45,7 @@ export default function MorseCodeInput({
       </label>
       <div className="flex flex-wrap gap-3">
         <input
+          ref={inputRef}
           id="morse-code-input"
           type="text"
           autoComplete="off"

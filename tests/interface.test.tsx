@@ -28,15 +28,39 @@ function roster(operators: { id: string; frequency: number }[]) {
   );
 }
 
-it('makes typed sending discoverable and retains drafts across panels and disconnects', async () => {
+it('opens typed sending from more actions and retains drafts across panels and disconnects', async () => {
   openApp();
   await join();
-  fireEvent.click(screen.getByRole('button', { name: 'Type a message' }));
+  expect(screen.queryByRole('button', { name: 'Type a message' })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Message' })).toBeNull();
+  const trigger = screen.getByRole('button', { name: 'More actions' });
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  const action = screen.getByRole('menuitem', { name: 'Transmit text' });
+  expect(document.activeElement).toBe(action);
+  fireEvent.keyDown(action, { key: ' ' });
+  fireEvent.keyUp(action, { key: ' ' });
+  expect(sentCommands()).toEqual([]);
+  fireEvent.keyDown(action, { key: 'Escape' });
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(document.activeElement).toBe(trigger);
+  fireEvent.click(trigger);
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByRole('menu')).toBeNull();
+  fireEvent.click(trigger);
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Transmit text' }));
+  expect(screen.queryByRole('menu')).toBeNull();
+  expect(document.activeElement).toBe(screen.getByLabelText('Message'));
   fireEvent.change(screen.getByLabelText('Message'), {
     target: { value: 'CQ TEST' },
   });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Close text transmitter' }),
+  );
+  expect(screen.queryByRole('textbox', { name: 'Message' })).toBeNull();
+  expect(document.activeElement).toBe(trigger);
   fireEvent.click(screen.getByRole('button', { name: 'Morse reference' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Type a message' }));
+  fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Transmit text' }));
   expect((screen.getByLabelText('Message') as HTMLInputElement).value).toBe(
     'CQ TEST',
   );
