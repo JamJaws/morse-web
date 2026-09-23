@@ -10,6 +10,7 @@ import {
   FaVolumeUp,
 } from 'react-icons/fa';
 import MorseCodeTable from './beep/MorseCodeTable';
+import MorseCodeTree from './beep/MorseCodeTree';
 import MorseCodeInput from './beep/MorseCodeInput';
 import { MorseKey } from './components/MorseKey';
 import { DebugPanel } from './components/DebugPanel';
@@ -28,6 +29,7 @@ function App() {
   const moreActionsTrigger = useRef<HTMLButtonElement>(null);
   const messageInput = useRef<HTMLInputElement>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [referenceView, setReferenceView] = useState<'table' | 'tree'>('table');
   const [panel, setPanel] = useState<'reference' | 'message' | null>(() =>
     searchParams.get('tx') === '' || searchParams.get('tx') === 'true'
       ? 'message'
@@ -204,18 +206,51 @@ function App() {
               aria-labelledby="reference-heading"
               className="mt-8 rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
             >
-              <h2
-                id="reference-heading"
-                className="text-xl font-semibold tracking-tight"
-              >
-                Morse reference
-              </h2>
-              <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-                Local playback · {session.wpm} WPM
-              </p>
-              <MorseCodeTable
-                onClick={character => session.playMyMorseCode(character.code)}
-              />
+              <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2
+                    id="reference-heading"
+                    className="text-xl font-semibold tracking-tight"
+                  >
+                    Morse reference
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">
+                    Local playback · {session.wpm} WPM
+                  </p>
+                </div>
+                <div
+                  role="group"
+                  aria-label="Reference view"
+                  className="inline-flex gap-1 rounded-2xl border border-stroke bg-canvas p-1"
+                >
+                  {(['table', 'tree'] as const).map(view => (
+                    <button
+                      key={view}
+                      type="button"
+                      aria-pressed={referenceView === view}
+                      aria-controls={`reference-${view}`}
+                      onClick={() => setReferenceView(view)}
+                      className={`min-h-11 rounded-xl px-5 text-sm font-medium transition-colors motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                        referenceView === view
+                          ? 'bg-raised text-ink'
+                          : 'text-muted hover:text-ink'
+                      }`}
+                    >
+                      {view === 'table' ? 'Table' : 'Tree'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div id="reference-table" hidden={referenceView !== 'table'}>
+                <MorseCodeTable
+                  onClick={character => session.playMyMorseCode(character.code)}
+                />
+              </div>
+              <div id="reference-tree" hidden={referenceView !== 'tree'}>
+                <MorseCodeTree
+                  onClick={character => session.playMyMorseCode(character.code)}
+                />
+              </div>
             </section>
             <section
               id="morse-message"
