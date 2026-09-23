@@ -6,7 +6,10 @@ import App from '../src/App';
 import { morseCodeCharacters } from '../src/beep/MorseCodeCharacters';
 
 beforeEach(resetMocks);
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 async function openReference() {
   render(
@@ -128,5 +131,49 @@ it('leaves Space and Enter on reference buttons to their native behavior without
   }
   // jsdom does not synthesize the native click from keyboard events.
   expect(mocks.oscillators[0].start).not.toHaveBeenCalled();
+  expect(mocks.sendMessage).not.toHaveBeenCalled();
+});
+
+it('reflows into phone branches and preserves local selection when the screen widens', async () => {
+  let resize: (width: number) => void = () => {};
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(
+        callback: (entries: { contentRect: { width: number } }[]) => void,
+      ) {
+        resize = width => act(() => callback([{ contentRect: { width } }]));
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  await openReference();
+  fireEvent.click(viewButton('Tree'));
+  resize(280);
+  const tree = within(screen.getByRole('group', { name: 'Morse code tree' }));
+  expect(tree.getAllByRole('button')).toHaveLength(39);
+  for (const code of ['dot dot', 'dot dash', 'dash dot', 'dash dash']) {
+    expect(tree.getByRole('region', { name: `${code} branch` })).toBeDefined();
+  }
+  const branch = within(tree.getByRole('region', { name: 'dot dash branch' }));
+  mocks.sendMessage.mockClear();
+  fireEvent.click(
+    branch.getByRole('button', {
+      name: 'Play Å locally: dot dash dash dot dash',
+      exact: true,
+    }),
+  );
+  expect(mocks.oscillators[0].start).toHaveBeenCalledTimes(5);
+  expect(mocks.sendMessage).not.toHaveBeenCalled();
+  resize(0);
+  expect(tree.getAllByRole('region')).toHaveLength(4);
+  resize(700);
+  expect(tree.queryByRole('region')).toBeNull();
+  expect(tree.getAllByRole('button')).toHaveLength(39);
+  expect(
+    tree.getByRole('button', { pressed: true }).getAttribute('aria-label'),
+  ).toBe('Play Å locally: dot dash dash dot dash');
+  expect(mocks.oscillators[0].start).toHaveBeenCalledTimes(5);
   expect(mocks.sendMessage).not.toHaveBeenCalled();
 });
