@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ReadyState } from 'react-use-websocket';
 import { useSearchParams } from 'react-router-dom';
 import {
   FaBroadcastTower,
-  FaKeyboard,
   FaSlidersH,
+  FaTimes,
   FaVolumeMute,
   FaVolumeUp,
 } from 'react-icons/fa';
@@ -14,6 +15,7 @@ import { MorseKey } from './components/MorseKey';
 import { DebugPanel } from './components/DebugPanel';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
+import { MoreActionsMenu } from './components/MoreActionsMenu';
 import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
 import { useMorseKey } from './hooks/useMorseKey';
@@ -23,6 +25,8 @@ function App() {
   const debug =
     searchParams.get('debug') === '' || searchParams.get('debug') === 'true';
   const session = useMorseSession(debug);
+  const moreActionsTrigger = useRef<HTMLButtonElement>(null);
+  const messageInput = useRef<HTMLInputElement>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [panel, setPanel] = useState<'reference' | 'message' | null>(() =>
     searchParams.get('tx') === '' || searchParams.get('tx') === 'true'
@@ -92,6 +96,19 @@ function App() {
               <FaSlidersH aria-hidden="true" />
               <span className="hidden sm:inline">Settings</span>
             </Button>
+            {session.started && (
+              <MoreActionsMenu
+                triggerRef={moreActionsTrigger}
+                onTransmitText={() => {
+                  // Reveal the input before focusing it in this user action.
+                  flushSync(() => {
+                    setShowSettings(false);
+                    setPanel('message');
+                  });
+                  messageInput.current?.focus();
+                }}
+              />
+            )}
           </div>
         </div>
       </header>
@@ -174,18 +191,6 @@ function App() {
                   >
                     Morse reference
                   </Button>
-                  <Button
-                    aria-expanded={panel === 'message'}
-                    aria-controls="morse-message"
-                    onClick={() =>
-                      setPanel(current =>
-                        current === 'message' ? null : 'message',
-                      )
-                    }
-                  >
-                    <FaKeyboard aria-hidden="true" />
-                    Type a message
-                  </Button>
                 </div>
               </section>
             )}
@@ -218,13 +223,27 @@ function App() {
               aria-labelledby="message-heading"
               className="mx-auto mt-8 max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
             >
-              <h2
-                id="message-heading"
-                className="mb-4 text-xl font-semibold tracking-tight"
-              >
-                Send a message
-              </h2>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2
+                  id="message-heading"
+                  className="text-xl font-semibold tracking-tight"
+                >
+                  Transmit text
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close text transmitter"
+                  onClick={() => {
+                    setPanel(null);
+                    moreActionsTrigger.current?.focus();
+                  }}
+                >
+                  <FaTimes aria-hidden="true" />
+                </Button>
+              </div>
               <MorseCodeInput
+                inputRef={messageInput}
                 onSend={session.sendText}
                 connected={connected}
                 wpm={session.wpm}
