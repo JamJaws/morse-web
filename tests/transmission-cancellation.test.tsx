@@ -60,7 +60,7 @@ describe('transmission cancellation', () => {
 
   it('stops when a mouse press is released outside the button', async () => {
     const { button, oscillator } = await join();
-    fireEvent.pointerDown(button, { pointerId: 1 });
+    fireEvent.pointerDown(button, { pointerId: 1, isPrimary: true });
     fireEvent.pointerUp(document.body, { pointerId: 1 });
     expect(sentCommands()).toEqual(['START', 'STOP']);
     expect(oscillator.stop).toHaveBeenCalledOnce();
@@ -68,7 +68,11 @@ describe('transmission cancellation', () => {
 
   it('stops a cancelled touch once, even if a release follows', async () => {
     const { button, oscillator } = await join();
-    fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' });
+    fireEvent.pointerDown(button, {
+      pointerId: 1,
+      pointerType: 'touch',
+      isPrimary: true,
+    });
     fireEvent.pointerCancel(button, { pointerId: 1, pointerType: 'touch' });
     expect(sentCommands()).toEqual(['START', 'STOP']);
     fireEvent.pointerUp(button, { pointerId: 1, pointerType: 'touch' });
@@ -78,7 +82,7 @@ describe('transmission cancellation', () => {
 
   it('stops a cancelled pointer without waiting for mouseup', async () => {
     const { button, oscillator } = await join();
-    fireEvent.pointerDown(button, { pointerId: 1 });
+    fireEvent.pointerDown(button, { pointerId: 1, isPrimary: true });
     fireEvent.pointerCancel(button, { pointerId: 1 });
     expect(sentCommands()).toEqual(['START', 'STOP']);
     expect(oscillator.stop).toHaveBeenCalledOnce();
@@ -141,7 +145,11 @@ describe('accessible Morse key', () => {
   it('captures the primary pointer and ignores a second finger releasing', async () => {
     const { button } = await join();
     const capture = vi.spyOn(button, 'setPointerCapture');
-    fireEvent.pointerDown(button, { pointerId: 7, pointerType: 'touch' });
+    fireEvent.pointerDown(button, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+    });
     expect(capture).toHaveBeenCalledWith(7);
     fireEvent.pointerDown(button, {
       pointerId: 8,
@@ -156,14 +164,18 @@ describe('accessible Morse key', () => {
 
   it('stops when pointer capture is lost', async () => {
     const { button } = await join();
-    fireEvent.pointerDown(button, { pointerId: 7 });
+    fireEvent.pointerDown(button, { pointerId: 7, isPrimary: true });
     fireEvent.lostPointerCapture(button, { pointerId: 7 });
     expect(sentCommands()).toEqual(['START', 'STOP']);
   });
 
   it('ignores secondary buttons, shortcuts, and unrelated input releases', async () => {
     const { button } = await join();
-    fireEvent.pointerDown(button, { pointerId: 1, button: 2 });
+    fireEvent.pointerDown(button, {
+      pointerId: 1,
+      button: 2,
+      isPrimary: true,
+    });
     fireEvent.keyDown(button, { key: ' ', ctrlKey: true });
     expect(sentCommands()).toEqual([]);
     fireEvent.keyDown(button, { key: ' ' });

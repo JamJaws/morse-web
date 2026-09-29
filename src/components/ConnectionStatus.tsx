@@ -16,8 +16,7 @@ type Interaction = {
   dismissed: boolean;
 };
 type Action =
-  | { type: 'hover' | 'focus'; active: boolean }
-  | { type: 'toggle' | 'dismiss' };
+  { type: 'hover' | 'focus'; active: boolean } | { type: 'toggle' | 'dismiss' };
 
 function updateInteraction(state: Interaction, action: Action): Interaction {
   switch (action.type) {

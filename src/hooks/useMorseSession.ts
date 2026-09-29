@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import * as Tone from 'tone';
 import debounce from 'debounce';
 import { ReadyState } from 'react-use-websocket';
@@ -21,7 +28,6 @@ export function useMorseSession(debug = false) {
   const [muted, setMuted] = useState(false);
   const effectiveVolume = muted ? 0 : volume;
   const volumeRef = useRef(volume);
-  volumeRef.current = effectiveVolume;
   const [notice, setNotice] = useState('');
   const transmittingRef = useRef(false);
   const [transmitting, setTransmitting] = useState(false);
@@ -35,11 +41,16 @@ export function useMorseSession(debug = false) {
   const myIdRef = useRef<string | undefined>(undefined);
   const [myFrequency, setMyFrequency] = useState(preferences.frequency ?? 800);
   const frequencyRef = useRef(myFrequency);
-  frequencyRef.current = myFrequency;
   const preferredFrequency = useRef<number | undefined>(
     preferences.frequency ?? undefined,
   );
   const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    // Audio callbacks must see committed settings before passive effects run.
+    volumeRef.current = effectiveVolume;
+    frequencyRef.current = myFrequency;
+  }, [effectiveVolume, myFrequency]);
 
   const resetLocalAudio = useCallback(() => {
     // Tone creates a native node for every queued mark. Replacing the voice
@@ -145,28 +156,30 @@ export function useMorseSession(debug = false) {
     message => messageHandler.current(message),
     resetConnection,
   );
-  messageHandler.current = message => {
-    switch (message.type) {
-      case 'HELLO':
-        myIdRef.current = message.operatorId;
-        setMyOperatorId(message.operatorId);
-        preferredFrequency.current ??= message.frequency;
-        setMyFrequency(preferredFrequency.current);
-        sendFrequency(preferredFrequency.current);
-        break;
-      case 'OPERATORS':
-        operatorsRef.current = message.operators;
-        setOperators(message.operators);
-        syncVoices();
-        break;
-      case 'KEY':
-        voicesRef.current.get(message.operatorId)?.playback.key(message);
-        break;
-      case 'CODE':
-        voicesRef.current.get(message.operatorId)?.playback.code(message);
-        break;
-    }
-  };
+  useLayoutEffect(() => {
+    messageHandler.current = message => {
+      switch (message.type) {
+        case 'HELLO':
+          myIdRef.current = message.operatorId;
+          setMyOperatorId(message.operatorId);
+          preferredFrequency.current ??= message.frequency;
+          setMyFrequency(preferredFrequency.current);
+          sendFrequency(preferredFrequency.current);
+          break;
+        case 'OPERATORS':
+          operatorsRef.current = message.operators;
+          setOperators(message.operators);
+          syncVoices();
+          break;
+        case 'KEY':
+          voicesRef.current.get(message.operatorId)?.playback.key(message);
+          break;
+        case 'CODE':
+          voicesRef.current.get(message.operatorId)?.playback.code(message);
+          break;
+      }
+    };
+  }, [sendFrequency, syncVoices]);
   useEffect(() => {
     const context = Tone.getContext();
     const onStateChange = () => {

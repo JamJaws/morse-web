@@ -37,8 +37,7 @@ export const mocks = (() => {
     onOpen: undefined as (() => void) | undefined,
     onClose: undefined as (() => void) | undefined,
     onMessage: undefined as
-      | ((event: { data: string }) => void | Promise<void>)
-      | undefined,
+      ((event: { data: string }) => void | Promise<void>) | undefined,
   };
 })();
 

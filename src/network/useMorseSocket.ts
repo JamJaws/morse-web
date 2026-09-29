@@ -1,6 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import useWebSocketExport, { ReadyState } from 'react-use-websocket';
 import { parseMessage, type ServerMessage } from './protocol';
+
+// The package ships CommonJS; Vite exposes its exports object for ESM imports.
+type UseWebSocket = typeof useWebSocketExport;
+const useWebSocket: UseWebSocket =
+  typeof useWebSocketExport === 'function'
+    ? useWebSocketExport
+    : (useWebSocketExport as { default: UseWebSocket }).default;
 
 const PING_INTERVAL_MS = 5_000;
 const PONG_TIMEOUT_MS = 15_000;
@@ -10,7 +23,9 @@ export function useMorseSocket(
   onReset: () => void,
 ) {
   const handlers = useRef({ onMessage, onReset });
-  handlers.current = { onMessage, onReset };
+  useLayoutEffect(() => {
+    handlers.current = { onMessage, onReset };
+  }, [onMessage, onReset]);
   const sequence = useRef(0);
   const resetting = useRef(false);
   const pingId = useRef(0);

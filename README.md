@@ -7,7 +7,8 @@ with Tone.js; a WebSocket connection carries transmissions between operators.
 
 ## Development
 
-Use Node.js 22.12+ (CI uses Node 22) and npm:
+Use Node.js 22.22.2+ or 24.15.0+ within those release lines, or Node.js 26+
+(CI uses Node 22), and npm:
 
 ```sh
 npm ci

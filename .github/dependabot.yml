@@ -9,3 +9,28 @@ updates:
       prefix-development: 'chore'
       include: 'scope'
     open-pull-requests-limit: 10
+    groups:
+      build-and-test:
+        patterns:
+          - 'vite'
+          - '@vitejs/*'
+          - 'vitest'
+          - '@vitest/*'
+          - 'tailwindcss'
+          - '@tailwindcss/*'
+      lint-and-typescript:
+        patterns:
+          - 'eslint'
+          - '@eslint/*'
+          - 'eslint-plugin-*'
+          - 'typescript-eslint'
+          - '@typescript-eslint/*'
+          - 'typescript'
+          - 'globals'
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - '@testing-library/*'
