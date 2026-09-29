@@ -39,11 +39,9 @@ export function useMorseSession(debug = false) {
   const timeRef = useRef(0);
   const [myOperatorId, setMyOperatorId] = useState<string>();
   const myIdRef = useRef<string | undefined>(undefined);
-  const [myFrequency, setMyFrequency] = useState(preferences.frequency ?? 800);
+  const [myFrequency, setMyFrequency] = useState(preferences.frequency);
   const frequencyRef = useRef(myFrequency);
-  const preferredFrequency = useRef<number | undefined>(
-    preferences.frequency ?? undefined,
-  );
+  const preferredFrequency = useRef(myFrequency);
   const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
 
   useLayoutEffect(() => {
@@ -162,8 +160,6 @@ export function useMorseSession(debug = false) {
         case 'HELLO':
           myIdRef.current = message.operatorId;
           setMyOperatorId(message.operatorId);
-          preferredFrequency.current ??= message.frequency;
-          setMyFrequency(preferredFrequency.current);
           sendFrequency(preferredFrequency.current);
           break;
         case 'OPERATORS':

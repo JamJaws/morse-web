@@ -7,7 +7,13 @@ import {
 import type { Preferences } from '../settings/preferences';
 
 export function usePreferences() {
-  const [preferences, setPreferences] = useState(readPreferences);
+  const [preferences, setPreferences] = useState(() => {
+    const stored = readPreferences();
+    return {
+      ...stored,
+      frequency: stored.frequency ?? 600 + Math.floor(Math.random() * 401),
+    };
+  });
   useEffect(() => {
     try {
       localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));

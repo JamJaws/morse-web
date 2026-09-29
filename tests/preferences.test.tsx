@@ -6,7 +6,10 @@ import {
   defaultPreferences,
 } from '../src/settings/preferences';
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  vi.spyOn(Math, 'random').mockReturnValue(0.5);
+});
 afterEach(() => vi.restoreAllMocks());
 
 it('restores chosen settings across mounts, including zero volume', () => {
@@ -33,9 +36,10 @@ it.each([
   '{"volume":-1,"frequency":5000,"wpm":2}',
 ])('falls back safely for invalid stored data: %s', stored => {
   localStorage.setItem(PREFERENCES_KEY, stored);
-  expect(renderHook(usePreferences).result.current.preferences).toEqual(
-    defaultPreferences,
-  );
+  expect(renderHook(usePreferences).result.current.preferences).toEqual({
+    ...defaultPreferences,
+    frequency: 800,
+  });
 });
 
 it('keeps valid fields while rejecting non-numeric, fractional and out-of-range fields', () => {
@@ -46,7 +50,7 @@ it('keeps valid fields while rejecting non-numeric, fractional and out-of-range 
   const { result } = renderHook(usePreferences);
   expect(result.current.preferences).toEqual({
     volume: 25,
-    frequency: null,
+    frequency: 800,
     wpm: 20,
   });
   act(() => {
@@ -56,7 +60,7 @@ it('keeps valid fields while rejecting non-numeric, fractional and out-of-range 
   });
   expect(result.current.preferences).toEqual({
     volume: 25,
-    frequency: null,
+    frequency: 800,
     wpm: 20,
   });
 });
