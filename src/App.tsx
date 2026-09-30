@@ -42,10 +42,8 @@ function App() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-canvas text-ink focus-visible:outline-2 focus-visible:outline-accent"
-      onKeyDown={input.onKeyDown}
+      className="flex min-h-dvh flex-col bg-canvas text-ink"
       onBlur={input.cancel}
-      tabIndex={-1}
     >
       <header className="relative z-10 border-b border-stroke/60">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -174,6 +172,15 @@ function App() {
                   <kbd className="font-mono text-ink">Space</kbd> or{' '}
                   <kbd className="font-mono text-ink">Enter</kbd> when focused.
                 </p>
+                <Button
+                  variant="ghost"
+                  className="mt-2"
+                  aria-label="Focus Morse key"
+                  aria-keyshortcuts="Escape"
+                  onClick={input.focusKey}
+                >
+                  Focus key <kbd className="font-mono font-normal">Esc</kbd>
+                </Button>
                 {!connected && (
                   <p className="mt-3 text-sm text-warning">
                     Reconnecting · Local playback only

@@ -6,18 +6,24 @@ type MorseKeyProps = {
   input: ReturnType<typeof useMorseKey>;
 };
 
-export function MorseKey({ transmitting, connected, input }: MorseKeyProps) {
+export function MorseKey({
+  transmitting,
+  connected,
+  input: { keyRef, onKeyDown, onPointerDown, onLostPointerCapture },
+}: MorseKeyProps) {
   return (
     <button
+      ref={keyRef}
       type="button"
       autoFocus
       data-morse-key
       aria-label="Morse key"
       aria-describedby="morse-key-help"
       data-transmitting={transmitting}
-      className="group flex aspect-square w-[min(100%,24rem,65svh)] touch-none select-none flex-col items-center justify-center gap-6 rounded-[2rem] border border-stroke bg-surface text-ink shadow-lg hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent data-[transmitting=true]:border-accent data-[transmitting=true]:bg-accent data-[transmitting=true]:text-accent-ink"
-      onPointerDown={input.onPointerDown}
-      onLostPointerCapture={input.onLostPointerCapture}
+      className="group flex aspect-square w-[min(100%,24rem,65svh)] touch-none select-none flex-col items-center justify-center gap-6 rounded-[2rem] border border-stroke bg-surface text-ink shadow-lg transition-shadow duration-200 motion-reduce:transition-none hover:bg-raised focus:border-accent/50 focus:shadow-key-focus focus:outline-hidden data-[transmitting=true]:border-accent data-[transmitting=true]:bg-accent data-[transmitting=true]:text-accent-ink"
+      onKeyDown={onKeyDown}
+      onPointerDown={onPointerDown}
+      onLostPointerCapture={onLostPointerCapture}
       onContextMenu={event => event.preventDefault()}
     >
       <span

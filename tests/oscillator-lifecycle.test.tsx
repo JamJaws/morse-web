@@ -39,10 +39,9 @@ describe('oscillator lifecycle', () => {
     expect(mocks.oscillators).toHaveLength(0);
     await join();
     const oscillator = mocks.oscillators[0];
-    const main = screen
-      .getByRole('button', { name: 'Morse key' })
-      .closest('[tabindex]')!;
-    fireEvent.keyDown(main, { key: ' ' });
+    const button = screen.getByRole('button', { name: 'Morse key' });
+    expect(document.activeElement).toBe(button);
+    fireEvent.keyDown(button, { key: ' ' });
     expect(oscillator.start).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
@@ -57,7 +56,7 @@ describe('oscillator lifecycle', () => {
     expect(oscillator.frequency).toBe(950);
     expect(oscillator.volume).toBe(-Infinity);
     expect(oscillator.dispose).not.toHaveBeenCalled();
-    fireEvent.keyUp(main, { key: ' ' });
+    fireEvent.keyUp(screen.getByLabelText('Volume'), { key: ' ' });
     expect(oscillator.stop).toHaveBeenCalledOnce();
   });
 

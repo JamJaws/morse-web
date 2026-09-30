@@ -17,14 +17,14 @@ async function join() {
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));
   });
   const button = screen.getByRole('button', { name: 'Morse key' });
-  const main = button.closest('[tabindex]') as HTMLElement;
-  return { ...view, main, button, oscillator: mocks.oscillators[0] };
+  expect(document.activeElement).toBe(button);
+  return { ...view, button, oscillator: mocks.oscillators[0] };
 }
 
 describe('transmission cancellation', () => {
   it('stops when Space is released after focus moves to the message input', async () => {
-    const { main, oscillator } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
+    const { button, oscillator } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
     expect(sentCommands()).toEqual(['START']);
     act(() => screen.getByLabelText('Message').focus());
     expect(sentCommands()).toEqual(['START', 'STOP']);
@@ -34,24 +34,24 @@ describe('transmission cancellation', () => {
   });
 
   it('handles Space release on a different target even without a blur event', async () => {
-    const { main, oscillator } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
+    const { button, oscillator } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
     fireEvent.keyUp(screen.getByLabelText('Message'), { key: ' ' });
     expect(sentCommands()).toEqual(['START', 'STOP']);
     expect(oscillator.stop).toHaveBeenCalledOnce();
   });
 
   it('stops on window blur without waiting for keyup', async () => {
-    const { main, oscillator } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
+    const { button, oscillator } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
     fireEvent.blur(window);
     expect(sentCommands()).toEqual(['START', 'STOP']);
     expect(oscillator.stop).toHaveBeenCalledOnce();
   });
 
   it('stops when the document becomes hidden', async () => {
-    const { main, oscillator } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
+    const { button, oscillator } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
     vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
     fireEvent(document, new Event('visibilitychange'));
     expect(sentCommands()).toEqual(['START', 'STOP']);
@@ -89,11 +89,13 @@ describe('transmission cancellation', () => {
   });
 
   it('does not transmit while idle or when typing a space in the message input', async () => {
-    const { main, button, oscillator } = await join();
-    fireEvent.keyDown(screen.getByLabelText('Message'), { key: ' ' });
-    fireEvent.keyUp(screen.getByLabelText('Message'), { key: ' ' });
+    const { button, oscillator } = await join();
+    const message = screen.getByLabelText('Message');
+    act(() => message.focus());
+    fireEvent.keyDown(message, { key: ' ' });
+    fireEvent.keyUp(message, { key: ' ' });
     fireEvent.mouseLeave(button);
-    fireEvent.keyUp(main, { key: ' ' });
+    fireEvent.keyUp(document.body, { key: ' ' });
     fireEvent.blur(window);
     expect(sentCommands()).toEqual([]);
     expect(oscillator.start).not.toHaveBeenCalled();
@@ -101,20 +103,20 @@ describe('transmission cancellation', () => {
   });
 
   it('does not duplicate START or STOP and allows another transmission', async () => {
-    const { main } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
-    fireEvent.keyDown(main, { key: ' ', repeat: true });
-    fireEvent.keyDown(main, { key: ' ' });
-    fireEvent.keyUp(main, { key: ' ' });
-    fireEvent.keyUp(main, { key: ' ' });
-    fireEvent.keyDown(main, { key: ' ' });
-    fireEvent.keyUp(main, { key: ' ' });
+    const { button } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
+    fireEvent.keyDown(button, { key: ' ', repeat: true });
+    fireEvent.keyDown(button, { key: ' ' });
+    fireEvent.keyUp(button, { key: ' ' });
+    fireEvent.keyUp(button, { key: ' ' });
+    fireEvent.keyDown(button, { key: ' ' });
+    fireEvent.keyUp(button, { key: ' ' });
     expect(sentCommands()).toEqual(['START', 'STOP', 'START', 'STOP']);
   });
 
   it('stops on unmount and removes the global listeners', async () => {
-    const { main, unmount, oscillator } = await join();
-    fireEvent.keyDown(main, { key: ' ' });
+    const { button, unmount, oscillator } = await join();
+    fireEvent.keyDown(button, { key: ' ' });
     unmount();
     expect(sentCommands()).toEqual(['START', 'STOP']);
     expect(
@@ -127,6 +129,169 @@ describe('transmission cancellation', () => {
 });
 
 describe('accessible Morse key', () => {
+  it.each(['pointer', 'keyboard'])(
+    'silently focuses the key with the %s focus action before transmitting',
+    async activation => {
+      const { button, oscillator } = await join();
+      const focusButton = screen.getByRole('button', {
+        name: 'Focus Morse key',
+      });
+      act(() => focusButton.focus());
+      if (activation === 'keyboard') {
+        fireEvent.keyDown(focusButton, { key: 'Enter' });
+      } else {
+        fireEvent.pointerDown(focusButton, {
+          pointerId: 1,
+          isPrimary: true,
+        });
+        fireEvent.pointerUp(focusButton, { pointerId: 1 });
+      }
+      fireEvent.click(focusButton, {
+        detail: activation === 'keyboard' ? 0 : 1,
+      });
+      expect(document.activeElement).toBe(button);
+      if (activation === 'keyboard') {
+        fireEvent.keyDown(button, { key: 'Enter', repeat: true });
+        fireEvent.keyUp(button, { key: 'Enter' });
+      }
+      expect(sentCommands()).toEqual([]);
+      expect(oscillator.start).not.toHaveBeenCalled();
+      fireEvent.keyDown(button, { key: 'Enter' });
+      fireEvent.keyUp(button, { key: 'Enter' });
+      expect(sentCommands()).toEqual(['START', 'STOP']);
+    },
+  );
+
+  it('silently returns from the message input with Escape and preserves the draft', async () => {
+    const { button, oscillator } = await join();
+    const message = screen.getByLabelText('Message') as HTMLInputElement;
+    fireEvent.change(message, { target: { value: 'CQ TEST' } });
+    act(() => message.focus());
+    fireEvent.keyDown(message, { key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+    expect(message.value).toBe('CQ TEST');
+    expect(sentCommands()).toEqual([]);
+    expect(oscillator.start).not.toHaveBeenCalled();
+    fireEvent.keyDown(button, { key: 'Enter' });
+    fireEvent.keyUp(button, { key: 'Enter' });
+    expect(sentCommands()).toEqual(['START', 'STOP']);
+  });
+
+  it('ignores Space and Enter away from the key until Escape silently restores focus', async () => {
+    const { button, oscillator } = await join();
+    act(() => button.blur());
+    expect(document.activeElement).toBe(document.body);
+    for (const target of [document.body, screen.getByRole('main'), button]) {
+      for (const key of [' ', 'Enter']) {
+        fireEvent.keyDown(target, { key });
+        fireEvent.keyUp(target, { key });
+      }
+    }
+    expect(sentCommands()).toEqual([]);
+    for (const target of [
+      screen.getByLabelText('Message'),
+      screen.getByRole('button', { name: 'Settings' }),
+      screen.getByRole('button', { name: 'Morse reference' }),
+    ]) {
+      act(() => target.focus());
+      for (const key of [' ', 'Enter']) {
+        fireEvent.keyDown(target, { key });
+        fireEvent.keyUp(target, { key });
+      }
+    }
+    expect(sentCommands()).toEqual([]);
+    act(() => (document.activeElement as HTMLElement).blur());
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+    expect(sentCommands()).toEqual([]);
+    expect(oscillator.start).not.toHaveBeenCalled();
+    for (const key of [' ', 'Enter']) {
+      fireEvent.keyDown(button, { key });
+      fireEvent.keyUp(button, { key });
+    }
+    expect(sentCommands()).toEqual(['START', 'STOP', 'START', 'STOP']);
+  });
+
+  it('lets the menu handle Escape before returning to the key', async () => {
+    const { button } = await join();
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    act(() => trigger.focus());
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const action = screen.getByRole('menuitem', { name: 'Transmit text' });
+    expect(document.activeElement).toBe(action);
+    fireEvent.keyDown(action, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('lets connection details dismiss on Escape before returning to the key', async () => {
+    const { button } = await join();
+    const trigger = screen.getByRole('button', {
+      name: 'Connection details: Connected',
+    });
+    act(() => trigger.focus());
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(document.activeElement).toBe(button);
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('does not move focus out of settings with Escape', async () => {
+    await join();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    const volume = screen.getByLabelText('Volume');
+    act(() => volume.focus());
+    fireEvent.keyDown(volume, { key: 'Escape' });
+    expect(document.activeElement).toBe(volume);
+    expect(screen.queryByRole('button', { name: 'Morse key' })).toBeNull();
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('ignores modified, composing, repeated, and already handled Escape presses', async () => {
+    await join();
+    const message = screen.getByLabelText('Message');
+    act(() => message.focus());
+    for (const options of [
+      { altKey: true },
+      { ctrlKey: true },
+      { metaKey: true },
+      { repeat: true },
+      { isComposing: true },
+    ]) {
+      fireEvent.keyDown(message, { key: 'Escape', ...options });
+      expect(document.activeElement).toBe(message);
+    }
+    const handled = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    handled.preventDefault();
+    fireEvent(message, handled);
+    expect(document.activeElement).toBe(message);
+    expect(sentCommands()).toEqual([]);
+  });
+
+  it('cancels a held tone on Escape and permits a fresh Enter press', async () => {
+    const { button } = await join();
+    act(() => button.focus());
+    fireEvent.keyDown(button, { key: ' ' });
+    expect(sentCommands()).toEqual(['START']);
+    fireEvent.keyDown(button, { key: 'Escape' });
+    fireEvent.keyUp(button, { key: ' ' });
+    expect(document.activeElement).toBe(button);
+    expect(sentCommands()).toEqual(['START', 'STOP']);
+    fireEvent.keyDown(button, { key: 'Enter' });
+    fireEvent.keyUp(button, { key: 'Enter' });
+    expect(sentCommands()).toEqual(['START', 'STOP', 'START', 'STOP']);
+  });
+
   it.each([' ', 'Enter'])(
     'transmits while %j is held on the focused key',
     async key => {

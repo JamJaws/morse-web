@@ -13,6 +13,9 @@
   --color-success: #86efac;
   --color-warning: #fcd34d;
   --color-danger: #fca5a5;
+  --shadow-key-focus:
+    0 0 8px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 0 28px color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
 
 @layer base {

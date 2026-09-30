@@ -9,11 +9,39 @@ export function useMorseKey(
   start: () => boolean,
   stop: () => void,
 ) {
+  const keyRef = useRef<HTMLButtonElement>(null);
   const held = useRef<HeldInput | undefined>(undefined);
   const cancel = useCallback(() => {
     held.current = undefined;
     stop();
   }, [stop]);
+
+  const focusKey = useCallback(() => {
+    if (!enabled) return;
+    cancel();
+    keyRef.current?.focus();
+  }, [enabled, cancel]);
+
+  useEffect(() => {
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (
+        !enabled ||
+        event.key !== 'Escape' ||
+        event.defaultPrevented ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.isComposing
+      )
+        return;
+      event.preventDefault();
+      focusKey();
+    };
+    // Menus and popovers can consume Escape before it reaches the window.
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [enabled, focusKey]);
 
   useEffect(() => {
     if (!enabled) cancel();
@@ -54,26 +82,18 @@ export function useMorseKey(
     };
   }, [cancel]);
 
-  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (
       !enabled ||
+      event.currentTarget !== document.activeElement ||
+      event.defaultPrevented ||
       event.altKey ||
       event.ctrlKey ||
       event.metaKey ||
       event.nativeEvent.isComposing
     )
       return;
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return;
-    const isKey = target.closest('[data-morse-key]');
-    if (event.key !== ' ' && !(event.key === 'Enter' && isKey)) return;
-    if (
-      !isKey &&
-      target.closest(
-        'input, textarea, select, button, a, summary, [role="button"], [contenteditable]:not([contenteditable="false"])',
-      )
-    )
-      return;
+    if (event.key !== ' ' && event.key !== 'Enter') return;
     event.preventDefault();
     if (!event.repeat && !held.current && start())
       held.current = { key: event.key };
@@ -97,5 +117,12 @@ export function useMorseKey(
       cancel();
   };
 
-  return { onKeyDown, onPointerDown, onLostPointerCapture, cancel };
+  return {
+    keyRef,
+    focusKey,
+    onKeyDown,
+    onPointerDown,
+    onLostPointerCapture,
+    cancel,
+  };
 }

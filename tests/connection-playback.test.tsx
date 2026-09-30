@@ -30,9 +30,9 @@ async function join() {
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));
   });
-  return screen
-    .getByRole('button', { name: 'Morse key' })
-    .closest('[tabindex]')!;
+  const button = screen.getByRole('button', { name: 'Morse key' });
+  expect(document.activeElement).toBe(button);
+  return button;
 }
 function receive(message: object) {
   mocks.onMessage?.({ data: JSON.stringify(message) });
@@ -93,12 +93,12 @@ it('queues two typed messages received in one React batch', async () => {
 });
 
 it('refreshes held keys with monotonic sequence numbers and never enables offline replay', async () => {
-  const main = await join();
-  fireEvent.keyDown(main, { key: ' ' });
+  const button = await join();
+  fireEvent.keyDown(button, { key: ' ' });
   act(() => {
     vi.advanceTimersByTime(500);
   });
-  fireEvent.keyUp(main, { key: ' ' });
+  fireEvent.keyUp(button, { key: ' ' });
   const keys = messages('KEY');
   expect(keys.map(k => k.down)).toEqual([true, true, true, false]);
   expect(keys.map(k => k.sequence)).toEqual([1, 2, 3, 4]);
@@ -109,7 +109,7 @@ it('refreshes held keys with monotonic sequence numbers and never enables offlin
 });
 
 it('disposes remote audio, resets a held key and starts a fresh sequence on reconnect', async () => {
-  const main = await join();
+  const button = await join();
   act(() => {
     receive(roster);
     receive({
@@ -120,7 +120,7 @@ it('disposes remote audio, resets a held key and starts a fresh sequence on reco
       down: true,
     });
   });
-  fireEvent.keyDown(main, { key: ' ' });
+  fireEvent.keyDown(button, { key: ' ' });
   act(() => {
     mocks.socket.readyState = 3;
     mocks.onClose?.();
@@ -128,16 +128,16 @@ it('disposes remote audio, resets a held key and starts a fresh sequence on reco
   expect(mocks.oscillators[1].dispose).toHaveBeenCalledOnce();
   expect(mocks.gains[0].dispose).toHaveBeenCalledOnce();
   const count = messages('KEY').length;
-  fireEvent.keyUp(main, { key: ' ' });
-  fireEvent.keyDown(main, { key: ' ' });
-  fireEvent.keyUp(main, { key: ' ' });
+  fireEvent.keyUp(button, { key: ' ' });
+  fireEvent.keyDown(button, { key: ' ' });
+  fireEvent.keyUp(button, { key: ' ' });
   expect(messages('KEY')).toHaveLength(count);
   act(() => {
     mocks.socket.readyState = 1;
     mocks.onOpen?.();
   });
   expect(messages('KEY')).toHaveLength(count);
-  fireEvent.keyDown(main, { key: ' ' });
+  fireEvent.keyDown(button, { key: ' ' });
   expect(messages('KEY').at(-1).sequence).toBe(1);
 });
 
@@ -224,18 +224,21 @@ it('ignores malformed frames and requires Join after audio suspension', async ()
 });
 
 it('disconnects all queued local marks when manual keying interrupts typed playback', async () => {
-  const main = await join();
-  fireEvent.change(screen.getByLabelText('Message'), {
+  const button = await join();
+  const message = screen.getByLabelText('Message');
+  act(() => message.focus());
+  fireEvent.change(message, {
     target: { value: 'SOS' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
   const typedVoice = mocks.oscillators[0];
   expect(typedVoice.start).toHaveBeenCalledTimes(9);
-  fireEvent.keyDown(main, { key: ' ' });
+  act(() => button.focus());
+  fireEvent.keyDown(button, { key: ' ' });
   expect(typedVoice.dispose).toHaveBeenCalledOnce();
   const manualVoice = mocks.oscillators[1];
   expect(manualVoice.start).toHaveBeenCalledOnce();
-  fireEvent.keyUp(main, { key: ' ' });
+  fireEvent.keyUp(button, { key: ' ' });
   expect(manualVoice.stop).toHaveBeenCalledOnce();
   expect(messages('KEY').map(k => k.down)).toEqual([true, false]);
 });
@@ -262,7 +265,7 @@ it('disposes queued local playback on disconnect and retains unsent input', asyn
 });
 
 it('ignores queued socket events while closing and does not repopulate audio', async () => {
-  const main = await join();
+  const button = await join();
   act(() => {
     mocks.onOpen?.();
     mocks.socket.bufferedAmount = 65_537;
@@ -282,18 +285,18 @@ it('ignores queued socket events while closing and does not repopulate audio', a
   });
   expect(mocks.gains).toHaveLength(0);
   expect(mocks.socket.close).toHaveBeenCalledOnce();
-  fireEvent.keyDown(main, { key: ' ' });
-  fireEvent.keyUp(main, { key: ' ' });
+  fireEvent.keyDown(button, { key: ' ' });
+  fireEvent.keyUp(button, { key: ' ' });
   expect(messages('KEY')).toHaveLength(0);
 });
 
 it('sends whole-millisecond KEY and CODE timestamps from the monotonic clock', async () => {
-  const main = await join();
+  const button = await join();
   const clock = vi.spyOn(performance, 'now').mockReturnValue(100.4);
   try {
-    fireEvent.keyDown(main, { key: ' ' });
+    fireEvent.keyDown(button, { key: ' ' });
     clock.mockReturnValue(160.4);
-    fireEvent.keyUp(main, { key: ' ' });
+    fireEvent.keyUp(button, { key: ' ' });
     clock.mockReturnValue(200.6);
     fireEvent.change(screen.getByLabelText('Message'), {
       target: { value: 'E' },
