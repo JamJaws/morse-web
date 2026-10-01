@@ -26,5 +26,5 @@ it('renders the socket hook with the real browser-bundled WebSocket package', as
     renderSocket: () => string;
   };
 
-  expect(bundle.renderSocket()).toBe('<output>0</output>');
+  expect(bundle.renderSocket()).toBe('<output>-1</output>');
 });

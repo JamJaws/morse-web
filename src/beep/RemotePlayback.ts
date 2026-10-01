@@ -3,7 +3,8 @@ import type { PlaybackSettings } from './PlaybackSettings';
 import { parseMorseCode } from './MorseCodeParser';
 
 export const MAX_CODE_QUEUE_MS = 120_000;
-type Edge = { at: number; down: boolean; guard?: boolean };
+export const ACTIVITY_HANG_MS = 350;
+type Edge = { at: number; down: boolean; guard?: boolean; manual?: boolean };
 export interface PlaybackSink {
   replace(
     down: boolean,
@@ -30,6 +31,9 @@ export class RemotePlayback {
   private offset: number | undefined;
   private audioOffset: number;
   private queue: Edge[] = [];
+  private codeActivity: { start: number; end: number }[] = [];
+  private manualActive = false;
+  private manualActiveUntil = -Infinity;
   private audibleDown = false;
   private keyDown = false;
   private awaitingUp = false;
@@ -76,11 +80,19 @@ export class RemotePlayback {
     while (this.queue.length && this.queue[0].at <= now) {
       const edge = this.queue.shift()!;
       this.audibleDown = edge.down;
+      if (edge.manual) {
+        if (!edge.down && this.manualActive)
+          this.manualActiveUntil = edge.at + ACTIVITY_HANG_MS;
+        this.manualActive = edge.down;
+      }
       if (edge.guard && this.keyDown) {
         this.leaseExpirations++;
         this.awaitingUp = true;
       }
     }
+    this.codeActivity = this.codeActivity.filter(
+      interval => interval.end > now,
+    );
   }
   private render() {
     this.drain();
@@ -96,8 +108,21 @@ export class RemotePlayback {
   tick() {
     this.drain();
   }
+  /** Mirrors accepted audio playback, independently of the output volume. */
+  get isActive(): boolean {
+    this.drain();
+    const now = this.playhead();
+    return (
+      this.manualActive ||
+      now < this.manualActiveUntil ||
+      this.codeActivity.some(interval => interval.start <= now)
+    );
+  }
   private silence() {
     this.queue = [];
+    this.codeActivity = [];
+    this.manualActive = false;
+    this.manualActiveUntil = -Infinity;
     this.audibleDown = false;
     this.codeUntil = 0;
   }
@@ -166,7 +191,7 @@ export class RemotePlayback {
       return;
     }
     if (event.down && !this.keyDown) {
-      if (this.codeUntil > now) {
+      if (this.codeUntil > this.playhead()) {
         this.silence();
         // An interrupted typed queue must not reserve silence until its old end.
         this.lastStopSender = -Infinity;
@@ -193,13 +218,15 @@ export class RemotePlayback {
     }
     // State refreshes renew an audio-thread cutoff without retriggering.
     this.queue = this.queue.filter(e => !e.guard);
-    if (event.down !== this.keyDown) this.queue.push({ at, down: event.down });
+    if (event.down !== this.keyDown)
+      this.queue.push({ at, down: event.down, manual: true });
     this.keyDown = event.down;
     if (event.down)
       this.queue.push({
         at: Math.max(at, now) + this.settings.keyLeaseMs,
         down: false,
         guard: true,
+        manual: true,
       });
     else {
       this.lastStopSender = event.timestamp;
@@ -271,6 +298,7 @@ export class RemotePlayback {
         { at: beep.stop * 1_000, down: false },
       );
     this.codeUntil = start + parsed.duration * 1_000;
+    this.codeActivity.push({ start, end: this.codeUntil });
     this.lastStopSender = event.timestamp + parsed.duration * 1_000;
     this.lastStopPlayback = this.codeUntil;
     this.queue.sort((a, b) => a.at - b.at);

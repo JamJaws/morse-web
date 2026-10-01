@@ -3,8 +3,9 @@ import {
   PREFERENCES_KEY,
   readPreferences,
   validPreference,
+  preferenceRanges,
 } from '../settings/preferences';
-import type { Preferences } from '../settings/preferences';
+import { isValidName } from '../settings/operatorName';
 
 export function usePreferences() {
   const [preferences, setPreferences] = useState(() => {
@@ -21,9 +22,15 @@ export function usePreferences() {
       // Storage can be blocked or full. Controls still work for this session.
     }
   }, [preferences]);
-  const update = useCallback((key: keyof Preferences, value: number) => {
-    if (validPreference(key, value))
-      setPreferences(current => ({ ...current, [key]: value }));
+  const update = useCallback(
+    (key: keyof typeof preferenceRanges, value: number) => {
+      if (validPreference(key, value))
+        setPreferences(current => ({ ...current, [key]: value }));
+    },
+    [],
+  );
+  const updateName = useCallback((name: string) => {
+    if (isValidName(name)) setPreferences(current => ({ ...current, name }));
   }, []);
-  return { preferences, update };
+  return { preferences, update, updateName };
 }

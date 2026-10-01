@@ -1,3 +1,5 @@
+import { isValidName } from './operatorName';
+
 export const PREFERENCES_KEY = 'morse.preferences.v1';
 export const preferenceRanges = {
   volume: { min: 0, max: 100 },
@@ -5,18 +7,20 @@ export const preferenceRanges = {
   wpm: { min: 4, max: 40 },
 };
 export interface Preferences {
+  name: string;
   volume: number;
   frequency: number | null;
   wpm: number;
 }
 export const defaultPreferences: Preferences = {
+  name: '',
   volume: 80,
   frequency: null,
   wpm: 20,
 };
 
 export function validPreference(
-  key: keyof Preferences,
+  key: keyof typeof preferenceRanges,
   value: unknown,
 ): value is number {
   const { min, max } = preferenceRanges[key];
@@ -36,6 +40,7 @@ export function readPreferences(): Preferences {
     if (!stored || typeof stored !== 'object') return { ...defaultPreferences };
     const values = stored as Record<string, unknown>;
     return {
+      name: isValidName(values.name) ? values.name : '',
       volume: validPreference('volume', values.volume)
         ? values.volume
         : defaultPreferences.volume,

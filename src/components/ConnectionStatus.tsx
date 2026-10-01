@@ -6,7 +6,7 @@ const states = {
   [ReadyState.OPEN]: { label: 'Connected', color: 'bg-success' },
   [ReadyState.CLOSING]: { label: 'Reconnecting', color: 'bg-warning' },
   [ReadyState.CLOSED]: { label: 'Reconnecting', color: 'bg-warning' },
-  [ReadyState.UNINSTANTIATED]: { label: 'Offline', color: 'bg-muted' },
+  [ReadyState.UNINSTANTIATED]: { label: 'Not joined', color: 'bg-muted' },
 };
 
 type Interaction = {
@@ -150,7 +150,11 @@ export function ConnectionStatus({
               </div>
             </dl>
           ) : (
-            <p className="leading-relaxed text-muted">Local playback only.</p>
+            <p className="leading-relaxed text-muted">
+              {readyState === ReadyState.UNINSTANTIATED
+                ? 'Join to connect to the channel.'
+                : 'Local playback only.'}
+            </p>
           )}
         </div>
       </div>

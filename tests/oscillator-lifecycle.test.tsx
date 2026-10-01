@@ -24,7 +24,13 @@ async function join() {
 async function setOperators(operators: { id: string; frequency: number }[]) {
   await act(async () => {
     await mocks.onMessage?.({
-      data: JSON.stringify({ type: 'OPERATORS', operators }),
+      data: JSON.stringify({
+        type: 'OPERATORS',
+        operators: operators.map(operator => ({
+          ...operator,
+          name: operator.id,
+        })),
+      }),
     });
   });
 }

@@ -1,6 +1,9 @@
+import { isValidName } from '../settings/operatorName';
+
 export interface Operator {
   id: string;
   frequency: number;
+  name: string;
 }
 export type Timed = { operatorId: string; timestamp: number; sequence: number };
 export type ServerMessage =
@@ -28,7 +31,8 @@ export function parseMessage(data: unknown): ServerMessage | undefined {
       Array.isArray(m.operators) &&
       m.operators.length <= 512 &&
       m.operators.every(
-        (o: Operator) => o && id(o.id) && frequency(o.frequency),
+        (o: Operator) =>
+          o && id(o.id) && frequency(o.frequency) && isValidName(o.name),
       )
     )
       return m;

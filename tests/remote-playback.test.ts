@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { RemotePlayback } from '../src/beep/RemotePlayback';
+import { ACTIVITY_HANG_MS, RemotePlayback } from '../src/beep/RemotePlayback';
 import { parseMorseCode } from '../src/beep/MorseCodeParser';
 import type { PlaybackSettings } from '../src/beep/PlaybackSettings';
 import { PLAYBACK_TEST_SETTINGS } from './playback-fixture';
 
 function receiver(settings: Partial<PlaybackSettings> = {}) {
   let now = 40;
+  let audioTime: number | undefined;
   let sequence = 0;
   let down = false;
   let edges: { at: number; down: boolean }[] = [];
@@ -16,13 +17,16 @@ function receiver(settings: Partial<PlaybackSettings> = {}) {
         edges = plan.map(e => ({ ...e, at: (e.at - 10) * 1_000 }));
       },
     },
-    { now: () => now, audioNow: () => 10 + now / 1_000 },
+    { now: () => now, audioNow: () => 10 + (audioTime ?? now) / 1_000 },
     { ...PLAYBACK_TEST_SETTINGS, ...settings },
   );
   return {
     playback,
     at(time: number) {
       now = time;
+    },
+    audioAt(time: number) {
+      audioTime = time;
     },
     key(timestamp: number, down: boolean) {
       playback.key({ timestamp, sequence: ++sequence, down });
@@ -40,6 +44,141 @@ function receiver(settings: Partial<PlaybackSettings> = {}) {
 }
 
 describe('remote playback', () => {
+  it('lights manual keying only at playback and bridges short silent gaps', () => {
+    const r = receiver();
+    r.key(0, true);
+    expect(r.playback.isActive).toBe(false);
+    r.at(100);
+    r.key(60, false);
+    r.at(339);
+    expect(r.playback.isActive).toBe(false);
+    r.at(341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(401);
+    expect(r.playback.isActive).toBe(true);
+    r.at(400 + ACTIVITY_HANG_MS - 1);
+    expect(r.playback.isActive).toBe(true);
+    r.at(400 + ACTIVITY_HANG_MS + 1);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('keeps queued text active through message gaps until playback finishes', () => {
+    const r = receiver();
+    expect(r.code(0, './.')).toBe(true);
+    expect(r.code(0, '.')).toBe(true);
+    const first = parseMorseCode(0, './.', 20);
+    const second = parseMorseCode(0, '.', 20);
+    const end = 340 + (first.duration + second.duration) * 1_000;
+    r.at(339);
+    expect(r.playback.isActive).toBe(false);
+    r.at(341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(600); // Silent word gap in the first message.
+    expect(r.playback.isActive).toBe(true);
+    r.at(end - 1); // The final message's trailing gap.
+    expect(r.playback.isActive).toBe(true);
+    r.at(end + 1);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('uses the audio playhead rather than elapsed packet time for activity', () => {
+    const r = receiver();
+    expect(r.code(0)).toBe(true);
+    r.audioAt(40);
+    r.at(2_000);
+    expect(r.playback.isActive).toBe(false);
+    r.audioAt(341);
+    expect(r.playback.isActive).toBe(true);
+    r.audioAt(581);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('does not light a later queued message across an unscheduled idle gap', () => {
+    const r = receiver();
+    expect(r.code(0)).toBe(true);
+    expect(r.code(1_000)).toBe(true);
+    r.at(341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(581);
+    expect(r.playback.isActive).toBe(false);
+    r.at(1_339);
+    expect(r.playback.isActive).toBe(false);
+    r.at(1_341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(1_581);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('clears canceled text activity while the interrupting manual key is buffered', () => {
+    const r = receiver();
+    expect(r.code(0, '-'.repeat(20), 4)).toBe(true);
+    r.at(341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(500);
+    r.key(460, true);
+    expect(r.playback.isActive).toBe(false);
+    const keyStart = r.edges.find(edge => edge.down)!.at;
+    r.at(560);
+    r.key(520, false);
+    r.at(keyStart + 1);
+    expect(r.playback.isActive).toBe(true);
+    r.at(keyStart + 60 + ACTIVITY_HANG_MS + 1);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('cancels text that is still playing after the audio clock was paused', () => {
+    const r = receiver();
+    expect(r.code(0)).toBe(true);
+    r.audioAt(341);
+    r.at(2_000);
+    expect(r.playback.isActive).toBe(true);
+    r.key(1_960, true);
+    expect(r.playback.isActive).toBe(false);
+    expect(r.edges.filter(edge => edge.down)).toHaveLength(1);
+  });
+
+  it('ends activity after a lost key release reaches its audio lease', () => {
+    const r = receiver();
+    r.key(0, true);
+    r.at(341);
+    expect(r.playback.isActive).toBe(true);
+    r.at(1_341);
+    expect(r.playback.isActive).toBe(true);
+    expect(r.playback.stats.leaseExpirations).toBe(1);
+    r.at(1_340 + ACTIVITY_HANG_MS + 1);
+    expect(r.playback.isActive).toBe(false);
+    r.key(1_600, true); // A refresh cannot revive an expired held key.
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it('does not activate for rejected timing or stale messages', () => {
+    const r = receiver();
+    r.playback.key({ timestamp: NaN, sequence: 1, down: true });
+    expect(r.code(0, '')).toBe(false);
+    expect(r.playback.isActive).toBe(false);
+    r.at(2_000);
+    expect(r.code(60)).toBe(false);
+    r.key(120, true);
+    expect(r.playback.isActive).toBe(false);
+    r.at(2_500);
+    expect(r.playback.isActive).toBe(false);
+  });
+
+  it.each(['key', 'code'] as const)(
+    'clears active and pending %s activity on reset',
+    mode => {
+      const r = receiver();
+      if (mode === 'key') r.key(0, true);
+      else r.code(0);
+      r.at(341);
+      expect(r.playback.isActive).toBe(true);
+      r.playback.reset();
+      expect(r.playback.isActive).toBe(false);
+      r.at(1_000);
+      expect(r.playback.isActive).toBe(false);
+    },
+  );
+
   it.each(['key', 'code'] as const)(
     'preserves custom initial timing and mark lengths for %s across reset',
     mode => {

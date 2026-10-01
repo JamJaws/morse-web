@@ -26,7 +26,7 @@ it('samples diagnostics only when enabled without resetting live playback', asyn
     mocks.onMessage?.({
       data: JSON.stringify({
         type: 'OPERATORS',
-        operators: [{ id: 'peer', frequency: 650 }],
+        operators: [{ id: 'peer', name: 'Peer', frequency: 650 }],
       }),
     });
     vi.advanceTimersByTime(1_000);

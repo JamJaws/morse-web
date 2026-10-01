@@ -22,6 +22,7 @@ it('restores chosen settings across mounts, including zero volume', () => {
   first.unmount();
   const second = renderHook(usePreferences);
   expect(second.result.current.preferences).toEqual({
+    name: '',
     volume: 0,
     frequency: 950,
     wpm: 30,
@@ -49,6 +50,7 @@ it('keeps valid fields while rejecting non-numeric, fractional and out-of-range 
   );
   const { result } = renderHook(usePreferences);
   expect(result.current.preferences).toEqual({
+    name: '',
     volume: 25,
     frequency: 800,
     wpm: 20,
@@ -59,6 +61,7 @@ it('keeps valid fields while rejecting non-numeric, fractional and out-of-range 
     result.current.update('wpm', 41);
   });
   expect(result.current.preferences).toEqual({
+    name: '',
     volume: 25,
     frequency: 800,
     wpm: 20,
@@ -75,4 +78,20 @@ it('keeps controls usable when storage is unavailable', () => {
   const { result } = renderHook(usePreferences);
   act(() => result.current.update('volume', 15));
   expect(result.current.preferences.volume).toBe(15);
+});
+
+it('restores a valid Unicode identity while discarding malformed stored names', () => {
+  localStorage.setItem(
+    PREFERENCES_KEY,
+    JSON.stringify({ name: 'Åsa / SM0ABC' }),
+  );
+  const saved = renderHook(usePreferences);
+  expect(saved.result.current.preferences.name).toBe('Åsa / SM0ABC');
+  saved.unmount();
+  for (const name of [null, 42, '  Alex  ', 'a'.repeat(33), 'A\u200bB']) {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ name }));
+    const invalid = renderHook(usePreferences);
+    expect(invalid.result.current.preferences.name).toBe('');
+    invalid.unmount();
+  }
 });
