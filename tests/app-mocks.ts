@@ -78,14 +78,18 @@ vi.mock('react-use-websocket', () => {
       url: string | null,
       options: {
         onMessage: typeof mocks.onMessage;
-        onOpen: typeof mocks.onOpen;
-        onClose: typeof mocks.onClose;
+        onOpen?: (event: Event) => void;
+        onClose?: (event: CloseEvent) => void;
       },
     ) {
       mocks.socketUrl = url;
-      mocks.onMessage = options.onMessage;
+      const socketEvent = <T extends object>(event: T): T => {
+        Object.defineProperty(event, 'target', { value: mocks.socket });
+        return event;
+      };
+      mocks.onMessage = event => options.onMessage?.(socketEvent(event));
       mocks.onOpen = () => {
-        options.onOpen?.();
+        options.onOpen?.(socketEvent(new Event('open')));
         if (mocks.autoHello)
           mocks.onMessage?.({
             data: JSON.stringify({
@@ -95,7 +99,8 @@ vi.mock('react-use-websocket', () => {
             }),
           });
       };
-      mocks.onClose = options.onClose;
+      mocks.onClose = () =>
+        options.onClose?.(socketEvent(new CloseEvent('close')));
       useEffect(() => {
         if (!url) return;
         mocks.onOpen?.();

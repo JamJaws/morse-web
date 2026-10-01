@@ -36,9 +36,14 @@ vi.mock('react-use-websocket', () => ({
 const registration = { name: 'Guest-AB12', frequency: 700 };
 const hello = { type: 'HELLO', operatorId: 'self', frequency: 700 };
 
+function socketEvent<T extends Event>(event: T): T {
+  Object.defineProperty(event, 'target', { value: socket.connection });
+  return event;
+}
+
 function receive(message: object) {
   socket.options.onMessage?.(
-    new MessageEvent('message', { data: JSON.stringify(message) }),
+    socketEvent(new MessageEvent('message', { data: JSON.stringify(message) })),
   );
 }
 
@@ -46,7 +51,7 @@ function open(rerender: () => void) {
   act(() => {
     socket.readyState = ReadyState.OPEN;
     socket.connection.readyState = ReadyState.OPEN;
-    socket.options.onOpen?.(new Event('open'));
+    socket.options.onOpen?.(socketEvent(new Event('open')));
     rerender();
   });
 }
@@ -147,11 +152,13 @@ it('registers the latest identity and frequency on every reconnect', () => {
   act(() => {
     socket.readyState = ReadyState.CLOSED;
     socket.connection.readyState = ReadyState.CLOSED;
-    socket.options.onClose?.(new CloseEvent('close'));
+    socket.options.onClose?.(socketEvent(new CloseEvent('close')));
     rerender({ identity: latest });
   });
   expect(result.current.sendKey(false)).toBe(false);
-  expect(socket.options.shouldReconnect?.(new CloseEvent('close'))).toBe(true);
+  expect(
+    socket.options.shouldReconnect?.(socketEvent(new CloseEvent('close'))),
+  ).toBe(true);
 
   open(() => rerender({ identity: latest }));
   expect(sent().at(-1)).toEqual({ type: 'JOIN', ...latest });
