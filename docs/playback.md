@@ -11,6 +11,11 @@ Remote playback starts with 300 ms of scheduling reserve. This replaces the old
 200 ms offset plus Tone's 100 ms lookahead; remote scheduling now uses the audio
 clock directly. Local keying retains immediate feedback without network buffering.
 
+Operator highlights follow each remote operator's buffered playback. Your own
+sent key presses and unqueued text light up immediately, without audio lookahead.
+Queued text follows its playback slot, and private previews do not trigger activity.
+Manual activity stays lit for 350 ms after scheduled key-up to bridge short gaps.
+
 Each operator has one synchronous scheduler and a rolling estimator of
 `arrival time - sender timestamp`. Clocks need not share an epoch. The 5th
 percentile estimates the clock/transit baseline; the 99th percentile minus that

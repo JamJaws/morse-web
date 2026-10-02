@@ -52,7 +52,7 @@ export function useMorseSession(debug = false) {
   const myOscillator = useRef<Tone.Oscillator | undefined>(undefined);
   const localAudioUsed = useRef(false);
   const localTransmissions = useRef<{ start: number; end: number }[]>([]);
-  const localKeyActivity = useRef<{ start: number; end: number } | null>(null);
+  const localKeyActiveUntil = useRef(-Infinity);
 
   const syncActivity = useCallback(() => {
     const now = Tone.immediate();
@@ -65,9 +65,7 @@ export function useMorseSession(debug = false) {
     }
     if (
       myIdRef.current &&
-      ((localKeyActivity.current &&
-        localKeyActivity.current.start <= now &&
-        localKeyActivity.current.end > now) ||
+      (localKeyActiveUntil.current > now ||
         localTransmissions.current.some(
           transmission => transmission.start <= now,
         ))
@@ -100,7 +98,7 @@ export function useMorseSession(debug = false) {
     timeRef.current = 0;
     localAudioUsed.current = false;
     localTransmissions.current = [];
-    localKeyActivity.current = null;
+    localKeyActiveUntil.current = -Infinity;
   }, []);
   useEffect(() => {
     if (!started) return;
@@ -183,7 +181,7 @@ export function useMorseSession(debug = false) {
     setRemoteOscillatorIds([]);
     myIdRef.current = undefined;
     setMyOperatorId(undefined);
-    localKeyActivity.current = null;
+    localKeyActiveUntil.current = -Infinity;
     localTransmissions.current = [];
     setActiveOperatorIds(new Set());
   }, [resetLocalAudio]);
@@ -360,13 +358,8 @@ export function useMorseSession(debug = false) {
     if (!sendKey(true))
       setNotice('Connection unavailable. Your tone is local only.');
     else {
-      localKeyActivity.current = {
-        start:
-          localKeyActivity.current && localKeyActivity.current.end > at
-            ? localKeyActivity.current.start
-            : at,
-        end: Infinity,
-      };
+      // A sent key lights immediately, independently of audio lookahead.
+      localKeyActiveUntil.current = Infinity;
       setNotice('');
     }
     syncActivity();
@@ -379,8 +372,8 @@ export function useMorseSession(debug = false) {
     setTransmitting(false);
     const at = Tone.now();
     myOscillator.current?.stop(at);
-    if (localKeyActivity.current?.end === Infinity)
-      localKeyActivity.current.end = at + ACTIVITY_HANG_MS / 1_000;
+    if (localKeyActiveUntil.current === Infinity)
+      localKeyActiveUntil.current = at + ACTIVITY_HANG_MS / 1_000;
     sendKey(false);
     syncActivity();
   }, [sendKey, syncActivity]);
@@ -388,7 +381,7 @@ export function useMorseSession(debug = false) {
   useEffect(() => {
     const interval = setInterval(() => {
       // A key pressed before registration remains local until pressed again.
-      if (transmittingRef.current && localKeyActivity.current?.end === Infinity)
+      if (transmittingRef.current && localKeyActiveUntil.current === Infinity)
         sendKey(true);
     }, 250);
     return () => clearInterval(interval);
@@ -410,7 +403,14 @@ export function useMorseSession(debug = false) {
       setNotice('Connection unavailable. Your message played locally only.');
       return false;
     }
-    localTransmissions.current.push(transmission);
+    // Immediate sends light now; queued text still follows its playback slot.
+    localTransmissions.current.push({
+      ...transmission,
+      start:
+        transmission.start <= Tone.now()
+          ? Tone.immediate()
+          : transmission.start,
+    });
     syncActivity();
     return true;
   };

@@ -79,11 +79,11 @@ export function OperatorList({
               return (
                 <li
                   key={operator.id}
-                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-1 transition-colors motion-reduce:transition-none ${active ? 'bg-accent/10' : ''}`}
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-1 ${active ? 'bg-accent/10' : 'transition-colors motion-reduce:transition-none'}`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold transition-colors motion-reduce:transition-none ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted'}`}
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted transition-colors motion-reduce:transition-none'}`}
                   >
                     {initials(operator.name)}
                   </span>

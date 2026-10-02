@@ -277,23 +277,82 @@ it('lights only sent text intervals within a mixed queue of private and transmit
   expect(result.current.activeOperatorIds.size).toBe(0);
 });
 
-it('follows local key audio timing, bridges a release, and cancels queued text on interruption', async () => {
+it('lights a local key immediately, bridges key gaps, and cancels queued text on interruption', async () => {
   const { result } = renderHook(() => useMorseSession());
   await act(() => result.current.startAudio('Alex'));
   act(() => {
     result.current.sendText('SOS SOS');
     result.current.start();
   });
-  expect(result.current.activeOperatorIds.has('me')).toBe(false);
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
   advance(200);
   expect(result.current.activeOperatorIds.has('me')).toBe(true);
   act(() => result.current.stop());
+  advance(200);
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
+  act(() => {
+    result.current.start();
+    result.current.stop();
+  });
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
   advance(400);
   expect(result.current.activeOperatorIds.has('me')).toBe(true);
   advance(100);
   expect(result.current.activeOperatorIds.has('me')).toBe(false);
   advance(10_000);
   expect(result.current.activeOperatorIds.size).toBe(0);
+  act(() => result.current.start());
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
+});
+
+it('lights an unqueued text transmission immediately without waiting for audio lookahead', async () => {
+  const { result } = renderHook(() => useMorseSession());
+  await act(() => result.current.startAudio('Alex'));
+  act(() => result.current.sendText('E'));
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
+  advance(200);
+  expect(result.current.activeOperatorIds.has('me')).toBe(true);
+  advance(200);
+  expect(result.current.activeOperatorIds.size).toBe(0);
+});
+
+it('waits for each remote operator playback before lighting their activity', async () => {
+  const { result } = renderHook(() => useMorseSession());
+  await act(() => result.current.startAudio('Alex'));
+  act(() => {
+    receive({
+      type: 'OPERATORS',
+      operators: [
+        { id: 'first', name: 'Spock', frequency: 700 },
+        { id: 'second', name: 'Data', frequency: 800 },
+      ],
+    });
+    receive({
+      type: 'KEY',
+      operatorId: 'first',
+      timestamp: 0,
+      sequence: 1,
+      down: true,
+    });
+  });
+  expect(result.current.activeOperatorIds.size).toBe(0);
+  advance(200);
+  expect(result.current.activeOperatorIds.size).toBe(0);
+  act(() =>
+    receive({
+      type: 'KEY',
+      operatorId: 'second',
+      timestamp: 200,
+      sequence: 1,
+      down: true,
+    }),
+  );
+  advance(200);
+  expect(result.current.activeOperatorIds).toEqual(new Set(['first']));
+  advance(200);
+  expect(result.current.activeOperatorIds).toEqual(
+    new Set(['first', 'second']),
+  );
 });
 
 it('never promotes a key pressed before HELLO into a transmitted hold', async () => {
