@@ -1,6 +1,7 @@
 import { isValidNamePreference } from './operatorName';
 
-export const PREFERENCES_KEY = 'morse.preferences.v1';
+export const PREFERENCES_KEY = 'morse.preferences.v2';
+const LEGACY_PREFERENCES_KEY = 'morse.preferences.v1';
 export const preferenceRanges = {
   volume: { min: 0, max: 100 },
   frequency: { min: 400, max: 1_000 },
@@ -34,13 +35,16 @@ export function validPreference(
 
 export function readPreferences(): Preferences {
   try {
+    const current = localStorage.getItem(PREFERENCES_KEY);
     const stored: unknown = JSON.parse(
-      localStorage.getItem(PREFERENCES_KEY) ?? 'null',
+      current ?? localStorage.getItem(LEGACY_PREFERENCES_KEY) ?? 'null',
     );
     if (!stored || typeof stored !== 'object') return { ...defaultPreferences };
     const values = stored as Record<string, unknown>;
+    const name = isValidNamePreference(values.name) ? values.name : '';
     return {
-      name: isValidNamePreference(values.name) ? values.name : '',
+      // v1 saved generated guests as names. Only clear that format during migration.
+      name: current === null && /^Guest-[0-9A-F]{6}$/.test(name) ? '' : name,
       volume: validPreference('volume', values.volume)
         ? values.volume
         : defaultPreferences.volume,

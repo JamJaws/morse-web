@@ -77,6 +77,37 @@ it('stays disconnected while entering a name and registers it only after audio i
   );
 });
 
+it('starts blank and requests a server guest after restoring an old client generated name', async () => {
+  localStorage.setItem(
+    'morse.preferences.v1',
+    JSON.stringify({ name: 'Guest-A1B2C3', frequency: 825 }),
+  );
+  const view = openApp();
+  expect(
+    (screen.getByLabelText('Callsign or name') as HTMLInputElement).value,
+  ).toBe('');
+  await act(async () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+  );
+  expect(sent('JOIN')).toEqual([{ type: 'JOIN', name: '', frequency: 825 }]);
+  act(() =>
+    receive({
+      type: 'OPERATORS',
+      operators: [{ id: 'me', name: 'Spock', frequency: 825 }],
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: /Operators, 1 connected/ }),
+  );
+  expect(screen.getByText('Spock')).toBeDefined();
+  expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).name).toBe('');
+  view.unmount();
+  openApp();
+  expect(
+    (screen.getByLabelText('Callsign or name') as HTMLInputElement).value,
+  ).toBe('');
+});
+
 it('requests a server guest name and persists only explicitly chosen names across reloads', async () => {
   const view = openApp();
   await act(async () =>

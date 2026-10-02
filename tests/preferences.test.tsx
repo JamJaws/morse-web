@@ -29,6 +29,60 @@ it('restores chosen settings across mounts, including zero volume', () => {
   });
 });
 
+it('migrates old generated guest names to an empty preference while keeping audio settings', () => {
+  localStorage.setItem(
+    'morse.preferences.v1',
+    JSON.stringify({
+      name: 'Guest-A1B2C3',
+      volume: 0,
+      frequency: 825,
+      wpm: 30,
+    }),
+  );
+  const { result } = renderHook(usePreferences);
+  expect(result.current.preferences).toEqual({
+    name: '',
+    volume: 0,
+    frequency: 825,
+    wpm: 30,
+  });
+  expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!)).toEqual(
+    result.current.preferences,
+  );
+});
+
+it('preserves other names when migrating old preferences', () => {
+  localStorage.setItem(
+    'morse.preferences.v1',
+    JSON.stringify({
+      name: 'Åsa / SM0ABC',
+      volume: 25,
+      frequency: 700,
+      wpm: 15,
+    }),
+  );
+  expect(renderHook(usePreferences).result.current.preferences).toEqual({
+    name: 'Åsa / SM0ABC',
+    volume: 25,
+    frequency: 700,
+    wpm: 15,
+  });
+});
+
+it('only discards the old guest format during migration and keeps names chosen afterward', () => {
+  localStorage.setItem(
+    'morse.preferences.v1',
+    JSON.stringify({ name: 'Guest-A1B2C3' }),
+  );
+  const first = renderHook(usePreferences);
+  expect(first.result.current.preferences.name).toBe('');
+  act(() => first.result.current.updateName('Guest-ABCDEF'));
+  first.unmount();
+
+  const next = renderHook(usePreferences);
+  expect(next.result.current.preferences.name).toBe('Guest-ABCDEF');
+});
+
 it.each([
   'broken json',
   'null',
