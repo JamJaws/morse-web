@@ -63,7 +63,6 @@ function WelcomeScreen({ session }: { session: MorseSession }) {
           autoCapitalize="off"
           spellCheck={false}
           maxLength={MAX_NAME_LENGTH}
-          placeholder="Random guest name"
           value={name}
           disabled={session.starting}
           onChange={event => setNameDraft(event.target.value)}
@@ -71,7 +70,7 @@ function WelcomeScreen({ session }: { session: MorseSession }) {
             if (event.key === 'Enter' && event.nativeEvent.isComposing)
               event.preventDefault();
           }}
-          className="min-h-12 w-full min-w-0 rounded-xl border border-stroke bg-surface px-4 py-2 text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+          className="min-h-12 w-full min-w-0 rounded-xl border border-stroke bg-surface px-4 py-2 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
         />
         <Button
           type="submit"
