@@ -63,7 +63,7 @@ function WelcomeScreen({ session }: { session: MorseSession }) {
           autoCapitalize="off"
           spellCheck={false}
           maxLength={MAX_NAME_LENGTH}
-          placeholder="Guest"
+          placeholder="Random guest name"
           value={name}
           disabled={session.starting}
           onChange={event => setNameDraft(event.target.value)}

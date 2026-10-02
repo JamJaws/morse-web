@@ -52,6 +52,7 @@ export function SettingsPanel({
               autoCapitalize="off"
               spellCheck={false}
               maxLength={MAX_NAME_LENGTH}
+              placeholder="Random guest name"
               value={name}
               onChange={event => setNameDraft(event.target.value)}
               onKeyDown={event => {

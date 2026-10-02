@@ -1,4 +1,4 @@
-import { isValidName } from './operatorName';
+import { isValidNamePreference } from './operatorName';
 
 export const PREFERENCES_KEY = 'morse.preferences.v1';
 export const preferenceRanges = {
@@ -40,7 +40,7 @@ export function readPreferences(): Preferences {
     if (!stored || typeof stored !== 'object') return { ...defaultPreferences };
     const values = stored as Record<string, unknown>;
     return {
-      name: isValidName(values.name) ? values.name : '',
+      name: isValidNamePreference(values.name) ? values.name : '',
       volume: validPreference('volume', values.volume)
         ? values.volume
         : defaultPreferences.volume,

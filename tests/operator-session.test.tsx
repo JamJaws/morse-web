@@ -77,19 +77,28 @@ it('stays disconnected while entering a name and registers it only after audio i
   );
 });
 
-it('generates a guest name, saves only committed renames, and prefills without reconnecting on reload', async () => {
+it('requests a server guest name and persists only explicitly chosen names across reloads', async () => {
   const view = openApp();
   await act(async () =>
     fireEvent.click(screen.getByRole('button', { name: 'Join' })),
   );
-  const guest = sent('JOIN')[0].name;
-  expect(guest).toMatch(/^Guest-[0-9A-F]{6}$/);
+  expect(sent('JOIN')[0].name).toBe('');
+  act(() =>
+    receive({
+      type: 'OPERATORS',
+      operators: [{ id: 'me', name: 'Spock', frequency: 700 }],
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: /Operators, 1 connected/ }),
+  );
+  expect(screen.getByText('Spock')).toBeDefined();
   fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
   fireEvent.change(screen.getByLabelText('Callsign or name'), {
     target: { value: '  Åsa / SM0ABC  ' },
   });
   expect(sent('NAME')).toEqual([]);
-  expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).name).toBe(guest);
+  expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).name).toBe('');
   fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
   expect(sent('NAME')).toEqual([{ type: 'NAME', name: 'Åsa / SM0ABC' }]);
   act(() =>
@@ -97,9 +106,6 @@ it('generates a guest name, saves only committed renames, and prefills without r
       type: 'OPERATORS',
       operators: [{ id: 'me', name: 'Åsa / SM0ABC', frequency: 700 }],
     }),
-  );
-  fireEvent.click(
-    screen.getByRole('button', { name: /Operators, 1 connected/ }),
   );
   expect(screen.getByText('Åsa / SM0ABC')).toBeDefined();
   view.unmount();
@@ -111,6 +117,45 @@ it('generates a guest name, saves only committed renames, and prefills without r
   expect(mocks.socketUrl).toBeNull();
   advance(30_000);
   expect(mocks.sendMessage.mock.calls).toHaveLength(before);
+});
+
+it('clears a custom name and requests a new guest on reconnect and reload', async () => {
+  const first = renderHook(() => useMorseSession());
+  await act(() => first.result.current.startAudio('Alex'));
+  act(() => {
+    expect(first.result.current.changeName('   ')).toBe(true);
+  });
+  expect(sent('NAME')).toEqual([{ type: 'NAME', name: '' }]);
+  act(() =>
+    receive({
+      type: 'OPERATORS',
+      operators: [{ id: 'me', name: 'Data', frequency: 700 }],
+    }),
+  );
+  expect(first.result.current.operators[0].name).toBe('Data');
+  expect(first.result.current.name).toBe('');
+  expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).name).toBe('');
+
+  act(() => {
+    mocks.socket.readyState = 3;
+    mocks.onClose?.();
+  });
+  act(() => {
+    mocks.socket.readyState = 1;
+    mocks.onOpen?.();
+    receive({
+      type: 'OPERATORS',
+      operators: [{ id: 'me', name: 'Worf', frequency: 700 }],
+    });
+  });
+  expect(sent('JOIN').at(-1).name).toBe('');
+  expect(first.result.current.operators[0].name).toBe('Worf');
+  expect(first.result.current.name).toBe('');
+  first.unmount();
+
+  const next = renderHook(() => useMorseSession());
+  await act(() => next.result.current.startAudio());
+  expect(sent('JOIN').at(-1).name).toBe('');
 });
 
 it('does not connect on failed audio or invalid identity and keeps saved settings usable offline', async () => {

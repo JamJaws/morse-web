@@ -14,6 +14,6 @@ export function isValidName(value: unknown): value is string {
   );
 }
 
-export function createGuestName(): string {
-  return `Guest-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
+export function isValidNamePreference(value: unknown): value is string {
+  return value === '' || isValidName(value);
 }

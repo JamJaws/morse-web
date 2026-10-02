@@ -5,7 +5,7 @@ import {
   validPreference,
   preferenceRanges,
 } from '../settings/preferences';
-import { isValidName } from '../settings/operatorName';
+import { isValidNamePreference } from '../settings/operatorName';
 
 export function usePreferences() {
   const [preferences, setPreferences] = useState(() => {
@@ -30,7 +30,8 @@ export function usePreferences() {
     [],
   );
   const updateName = useCallback((name: string) => {
-    if (isValidName(name)) setPreferences(current => ({ ...current, name }));
+    if (isValidNamePreference(name))
+      setPreferences(current => ({ ...current, name }));
   }, []);
   return { preferences, update, updateName };
 }

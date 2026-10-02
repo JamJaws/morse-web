@@ -168,26 +168,29 @@ it('registers the latest identity and frequency on every reconnect', () => {
   expect(sent().at(-1)).toMatchObject({ type: 'KEY', sequence: 1 });
 });
 
-it('synchronizes identity edits made while waiting for registration confirmation', () => {
-  const { result, rerender } = renderHook(
-    ({ identity }) => useMorseSocket(vi.fn(), vi.fn(), identity),
-    { initialProps: { identity: registration } },
-  );
-  open(() => rerender({ identity: registration }));
-  const latest = { name: 'SM0ABC', frequency: 825 };
-  rerender({ identity: latest });
-  expect(result.current.sendName(latest.name)).toBe(false);
-  expect(result.current.sendFrequency(latest.frequency)).toBe(false);
+it.each(['SM0ABC', ''])(
+  'synchronizes a name set to %j while waiting for registration confirmation',
+  name => {
+    const { result, rerender } = renderHook(
+      ({ identity }) => useMorseSocket(vi.fn(), vi.fn(), identity),
+      { initialProps: { identity: registration } },
+    );
+    open(() => rerender({ identity: registration }));
+    const latest = { name, frequency: 825 };
+    rerender({ identity: latest });
+    expect(result.current.sendName(latest.name)).toBe(false);
+    expect(result.current.sendFrequency(latest.frequency)).toBe(false);
 
-  act(() => receive(hello));
-  expect(sent()).toEqual([
-    { type: 'JOIN', ...registration },
-    { type: 'NAME', name: latest.name },
-    { type: 'FREQUENCY', frequency: latest.frequency },
-  ]);
-  expect(result.current.sendKey(true)).toBe(true);
-  expect(sent().at(-1)).toMatchObject({ type: 'KEY', sequence: 1 });
-});
+    act(() => receive(hello));
+    expect(sent()).toEqual([
+      { type: 'JOIN', ...registration },
+      { type: 'NAME', name: latest.name },
+      { type: 'FREQUENCY', frequency: latest.frequency },
+    ]);
+    expect(result.current.sendKey(true)).toBe(true);
+    expect(sent().at(-1)).toMatchObject({ type: 'KEY', sequence: 1 });
+  },
+);
 
 it('stops session traffic and reconnection when registration is cleared', () => {
   const { result, rerender } = renderHook(

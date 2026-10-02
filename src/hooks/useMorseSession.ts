@@ -17,8 +17,7 @@ import { useMorseSocket } from '../network/useMorseSocket';
 import type { Operator, ServerMessage } from '../network/protocol';
 import { usePreferences } from './usePreferences';
 import {
-  createGuestName,
-  isValidName,
+  isValidNamePreference,
   MAX_NAME_LENGTH,
   normalizeName,
 } from '../settings/operatorName';
@@ -283,8 +282,9 @@ export function useMorseSession(debug = false) {
     };
   }, []);
   const resolveName = useCallback((value: string) => {
-    const name = normalizeName(value) || createGuestName();
-    if (!isValidName(name)) {
+    // An empty preference asks the server for a guest name on each JOIN/NAME.
+    const name = normalizeName(value);
+    if (!isValidNamePreference(name)) {
       setNotice(
         `Use a name of up to ${MAX_NAME_LENGTH} characters without control characters.`,
       );
@@ -296,7 +296,7 @@ export function useMorseSession(debug = false) {
   const changeName = useCallback(
     (value: string) => {
       const name = resolveName(value);
-      if (!name) return false;
+      if (name === undefined) return false;
       updateName(name);
       // If disconnected, the next JOIN sends the saved name.
       if (readyState === ReadyState.OPEN) sendName(name);
@@ -310,7 +310,7 @@ export function useMorseSession(debug = false) {
     async (value = name) => {
       if (startingRef.current || startedRef.current) return;
       const name = resolveName(value);
-      if (!name) return;
+      if (name === undefined) return;
       startingRef.current = true;
       setStarting(true);
       try {
