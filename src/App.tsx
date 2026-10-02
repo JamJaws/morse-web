@@ -178,10 +178,10 @@ function App() {
         </div>
       </header>
       <main
-        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[minmax(0,1fr)_15rem]' : 'flex flex-col justify-center'}`}
+        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]' : 'flex flex-col justify-center'}`}
       >
         {session.started && (
-          <div className="min-w-0 lg:order-last">
+          <div className="min-w-0">
             <OperatorList
               operators={session.operators}
               myOperatorId={session.myOperatorId}

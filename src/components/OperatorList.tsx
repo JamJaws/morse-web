@@ -35,7 +35,7 @@ export function OperatorList({
       aria-labelledby={headingId}
       className="min-w-0 rounded-2xl border border-stroke bg-surface lg:sticky lg:top-6"
     >
-      <div className="hidden items-center justify-between gap-3 px-4 py-4 lg:flex">
+      <div className="hidden items-center justify-between gap-3 px-4 py-3 lg:flex">
         <h2 id={headingId} className="text-sm font-semibold">
           Operators
         </h2>
@@ -79,29 +79,25 @@ export function OperatorList({
               return (
                 <li
                   key={operator.id}
-                  className={`flex min-w-0 items-center gap-3 rounded-xl px-2 py-3 transition-colors motion-reduce:transition-none ${active ? 'bg-accent/10' : ''}`}
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-1 transition-colors motion-reduce:transition-none ${active ? 'bg-accent/10' : ''}`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold transition-colors motion-reduce:transition-none ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted'}`}
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold transition-colors motion-reduce:transition-none ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted'}`}
                   >
                     {initials(operator.name)}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-baseline gap-2">
-                      <span
-                        className={`truncate text-sm font-medium ${active ? 'text-accent' : 'text-ink'}`}
-                        title={operator.name}
-                      >
-                        {operator.name}
-                      </span>
-                      {operator.id === myOperatorId && (
-                        <span className="shrink-0 text-xs text-muted">You</span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 h-4 text-xs text-accent">
-                      {active ? 'Transmitting' : ''}
-                    </p>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span
+                      className={`truncate text-sm font-medium ${active ? 'text-accent' : 'text-ink'}`}
+                      title={operator.name}
+                    >
+                      {operator.name}
+                    </span>
+                    {operator.id === myOperatorId && (
+                      <span className="shrink-0 text-xs text-muted">You</span>
+                    )}
+                    {active && <span className="sr-only">Transmitting</span>}
                   </div>
                 </li>
               );
