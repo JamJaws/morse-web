@@ -65,7 +65,10 @@ Volume, a manually chosen frequency, and WPM are stored on the current device;
 blocked browser storage falls back to session-only settings. WPM controls typed
 messages and reference playback, not the timing of a manually held key.
 
-The Morse reference plays locally. The header's **More actions** (⋯) menu contains
+The collapsible Morse reference sits to the right of the key on wide screens
+and below it on smaller screens. Select its heading to show or hide it;
+punctuation expands separately. Reference characters play locally.
+The header's **More actions** (⋯) menu contains
 **Transmit text**, which broadcasts supported characters and keeps drafts while
 switching panels or reconnecting. The `?tx`
 URL shortcut opens that panel initially. `?debug` enables playback diagnostics;
