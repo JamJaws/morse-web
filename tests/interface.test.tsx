@@ -17,7 +17,7 @@ function openApp() {
 }
 async function join() {
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
   );
 }
 function roster(operators: { id: string; frequency: number }[]) {
@@ -168,7 +168,7 @@ it('allows retry after audio activation fails', async () => {
   openApp();
   await join();
   expect(
-    screen.getByText('Could not enable audio. Please try joining again.'),
+    screen.getByText('Could not enable audio. Please try connecting again.'),
   ).toBeDefined();
   expect(mocks.oscillators).toHaveLength(0);
   await join();

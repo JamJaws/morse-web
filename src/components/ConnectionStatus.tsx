@@ -2,11 +2,11 @@ import { useEffect, useId, useReducer, useRef } from 'react';
 import { ReadyState } from 'react-use-websocket';
 
 const states = {
-  [ReadyState.CONNECTING]: { label: 'Connecting', color: 'bg-warning' },
+  [ReadyState.CONNECTING]: { label: 'Connecting…', color: 'bg-warning' },
   [ReadyState.OPEN]: { label: 'Connected', color: 'bg-success' },
-  [ReadyState.CLOSING]: { label: 'Reconnecting', color: 'bg-warning' },
-  [ReadyState.CLOSED]: { label: 'Reconnecting', color: 'bg-warning' },
-  [ReadyState.UNINSTANTIATED]: { label: 'Not joined', color: 'bg-muted' },
+  [ReadyState.CLOSING]: { label: 'Connection lost', color: 'bg-warning' },
+  [ReadyState.CLOSED]: { label: 'Connection lost', color: 'bg-warning' },
+  [ReadyState.UNINSTANTIATED]: { label: 'Not connected', color: 'bg-muted' },
 };
 
 type Interaction = {
@@ -152,7 +152,7 @@ export function ConnectionStatus({
           ) : (
             <p className="leading-relaxed text-muted">
               {readyState === ReadyState.UNINSTANTIATED
-                ? 'Join to connect to the channel.'
+                ? 'Connect to the live channel.'
                 : 'Local playback only.'}
             </p>
           )}

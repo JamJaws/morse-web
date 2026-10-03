@@ -17,7 +17,7 @@ afterEach(() => {
 
 async function join() {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   });
 }
 

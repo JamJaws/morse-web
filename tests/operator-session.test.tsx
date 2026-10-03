@@ -62,10 +62,12 @@ it('stays disconnected while entering a name and registers it only after audio i
   advance(30_000);
   expect(mocks.socketUrl).toBeNull();
   expect(mocks.sendMessage).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   expect(mocks.socketUrl).toBeNull();
   expect(
-    screen.getByRole('button', { name: 'Joining…' }).hasAttribute('disabled'),
+    screen
+      .getByRole('button', { name: 'Connecting…' })
+      .hasAttribute('disabled'),
   ).toBe(true);
   await act(async () => enableAudio());
   expect(mocks.socketUrl).toMatch(/\/beep$/);
@@ -87,7 +89,7 @@ it('starts blank and requests a server guest after restoring an old client gener
     (screen.getByLabelText('Callsign or name') as HTMLInputElement).value,
   ).toBe('');
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
   );
   expect(sent('JOIN')).toEqual([{ type: 'JOIN', name: '', frequency: 825 }]);
   act(() =>
@@ -111,7 +113,7 @@ it('starts blank and requests a server guest after restoring an old client gener
 it('requests a server guest name and persists only explicitly chosen names across reloads', async () => {
   const view = openApp();
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
   );
   expect(sent('JOIN')[0].name).toBe('');
   act(() =>
@@ -227,7 +229,7 @@ it('retains the join name draft while changing pre-join audio settings', async (
   ).toBe('SM0ABC');
   expect(mocks.socketUrl).toBeNull();
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
   );
   expect(sent('JOIN')[0]).toMatchObject({
     name: 'SM0ABC',

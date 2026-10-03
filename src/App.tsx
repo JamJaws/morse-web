@@ -79,9 +79,9 @@ function WelcomeScreen({ session }: { session: MorseSession }) {
           disabled={session.starting}
         >
           <FaBroadcastTower aria-hidden="true" />
-          {session.starting ? 'Joining…' : 'Join'}
+          {session.starting ? 'Connecting…' : 'Connect'}
         </Button>
-        <p className="mt-4 text-sm text-muted">Joining enables sound.</p>
+        <p className="mt-4 text-sm text-muted">Connecting enables sound.</p>
       </form>
     </section>
   );
@@ -127,7 +127,9 @@ function App() {
             className="flex flex-wrap items-center gap-1 sm:gap-2"
           >
             <ConnectionStatus
-              readyState={session.readyState}
+              readyState={
+                session.starting ? ReadyState.CONNECTING : session.readyState
+              }
               operators={session.operators.length}
               latency={session.latency}
             />
@@ -239,8 +241,8 @@ function App() {
                 {!connected && (
                   <p className="mt-3 text-sm text-warning">
                     {session.readyState === ReadyState.CONNECTING
-                      ? 'Connecting'
-                      : 'Reconnecting'}{' '}
+                      ? 'Connecting…'
+                      : 'Reconnecting…'}{' '}
                     · Local playback only
                   </p>
                 )}

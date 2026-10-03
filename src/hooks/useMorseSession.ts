@@ -226,7 +226,7 @@ export function useMorseSession(debug = false) {
       if (context.state !== 'running' && startedRef.current) {
         startedRef.current = false;
         setStarted(false);
-        setNotice('Audio paused by your browser. Join again to resume.');
+        setNotice('Audio paused by your browser. Connect again to resume.');
         resetConnection();
       }
     };
@@ -321,7 +321,7 @@ export function useMorseSession(debug = false) {
         }
       } catch {
         if (mounted.current)
-          setNotice('Could not enable audio. Please try joining again.');
+          setNotice('Could not enable audio. Please try connecting again.');
       } finally {
         startingRef.current = false;
         if (mounted.current) setStarting(false);
