@@ -87,7 +87,7 @@ export function OperatorList({
                   >
                     {initials(operator.name)}
                   </span>
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-baseline gap-2">
                     <span
                       className={`truncate text-sm font-medium ${active ? 'text-accent' : 'text-ink'}`}
                       title={operator.name}
@@ -95,7 +95,9 @@ export function OperatorList({
                       {operator.name}
                     </span>
                     {operator.id === myOperatorId && (
-                      <span className="shrink-0 text-xs text-muted">You</span>
+                      <span className="ml-auto shrink-0 text-xs text-muted">
+                        You
+                      </span>
                     )}
                     {active && <span className="sr-only">Transmitting</span>}
                   </div>
