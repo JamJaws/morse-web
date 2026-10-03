@@ -12,6 +12,7 @@ import {
 import MorseCodeInput from './beep/MorseCodeInput';
 import { MorseKey } from './components/MorseKey';
 import { MorseReference } from './components/MorseReference';
+import { ListeningNotes } from './components/ListeningNotes';
 import { DebugPanel } from './components/DebugPanel';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -255,6 +256,11 @@ function App() {
           >
             {session.notice}
           </p>
+          {session.started && (
+            <div hidden={showSettings} className="mx-auto mt-6 w-full max-w-sm">
+              <ListeningNotes />
+            </div>
+          )}
         </div>
         {session.started && (
           <div hidden={showSettings} className="min-w-0">

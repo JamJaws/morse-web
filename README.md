@@ -68,6 +68,12 @@ messages and reference playback, not the timing of a manually held key.
 The collapsible Morse reference sits to the right of the key on wide screens
 and below it on smaller screens. Select its heading to show or hide it;
 punctuation expands separately. Reference characters play locally.
+
+**Notes** below the key opens a private notepad for writing down what you hear.
+Its text and open/closed state are saved on this device, with a session-only
+fallback if browser storage is blocked or full. Notes are never transmitted.
+Space and Enter work normally while typing; Escape returns focus to the key.
+
 The header's **More actions** (⋯) menu contains
 **Transmit text**, which broadcasts supported characters and keeps drafts while
 switching panels or reconnecting. The `?tx`
