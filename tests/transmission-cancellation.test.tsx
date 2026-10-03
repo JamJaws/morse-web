@@ -14,7 +14,7 @@ async function join() {
     </MemoryRouter>,
   );
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   });
   const button = screen.getByRole('button', { name: 'Morse key' });
   expect(document.activeElement).toBe(button);

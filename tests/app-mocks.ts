@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { useEffect } from 'react';
 
 export const mocks = (() => {
   class Oscillator {
@@ -34,6 +35,8 @@ export const mocks = (() => {
     context: { state: 'running', on: vi.fn(), off: vi.fn() },
     sendMessage: vi.fn(),
     startAudio: vi.fn().mockResolvedValue(undefined),
+    socketUrl: null as string | null,
+    autoHello: true,
     onOpen: undefined as (() => void) | undefined,
     onClose: undefined as (() => void) | undefined,
     onMessage: undefined as
@@ -62,7 +65,7 @@ vi.mock('tone', () => ({
 }));
 
 vi.mock('react-use-websocket', () => {
-  const getWebSocket = () => mocks.socket;
+  const getWebSocket = () => (mocks.socketUrl ? mocks.socket : null);
   return {
     ReadyState: {
       CONNECTING: 0,
@@ -71,22 +74,45 @@ vi.mock('react-use-websocket', () => {
       CLOSED: 3,
       UNINSTANTIATED: -1,
     },
-    default: (
-      _url: string,
+    default: function useSocket(
+      url: string | null,
       options: {
         onMessage: typeof mocks.onMessage;
-        onOpen: typeof mocks.onOpen;
-        onClose: typeof mocks.onClose;
+        onOpen?: (event: Event) => void;
+        onClose?: (event: CloseEvent) => void;
       },
-    ) => {
-      mocks.onMessage = options.onMessage;
-      mocks.onOpen = options.onOpen;
-      mocks.onClose = options.onClose;
+    ) {
+      mocks.socketUrl = url;
+      const socketEvent = <T extends object>(event: T): T => {
+        Object.defineProperty(event, 'target', { value: mocks.socket });
+        return event;
+      };
+      mocks.onMessage = event => options.onMessage?.(socketEvent(event));
+      mocks.onOpen = () => {
+        options.onOpen?.(socketEvent(new Event('open')));
+        if (mocks.autoHello)
+          mocks.onMessage?.({
+            data: JSON.stringify({
+              type: 'HELLO',
+              operatorId: 'me',
+              frequency: 700,
+            }),
+          });
+      };
+      mocks.onClose = () =>
+        options.onClose?.(socketEvent(new CloseEvent('close')));
+      useEffect(() => {
+        if (!url) return;
+        mocks.onOpen?.();
+        return () => {
+          mocks.socket.close();
+        };
+      }, [url]);
       return {
         sendMessage: mocks.sendMessage,
         getWebSocket,
         lastMessage: null,
-        readyState: mocks.socket.readyState,
+        readyState: url ? mocks.socket.readyState : -1,
       };
     },
   };
@@ -99,13 +125,20 @@ export function resetMocks() {
   mocks.onMessage = undefined;
   mocks.onOpen = undefined;
   mocks.onClose = undefined;
+  mocks.socketUrl = null;
+  mocks.autoHello = true;
   mocks.socket.readyState = 1;
   mocks.socket.bufferedAmount = 0;
   mocks.context.state = 'running';
 }
 export function sentCommands(): string[] {
-  return mocks.sendMessage.mock.calls.map(([message]) => {
-    const m = JSON.parse(message);
-    return m.type === 'KEY' ? (m.down ? 'START' : 'STOP') : m.type;
-  });
+  return (
+    mocks.sendMessage.mock.calls
+      .map(([message]) => JSON.parse(message))
+      // Input tests assert transmissions; registration is covered separately.
+      .filter(message => message.type !== 'JOIN')
+      .map(m => {
+        return m.type === 'KEY' ? (m.down ? 'START' : 'STOP') : m.type;
+      })
+  );
 }

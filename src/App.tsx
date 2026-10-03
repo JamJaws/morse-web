@@ -15,10 +15,77 @@ import { MorseKey } from './components/MorseKey';
 import { DebugPanel } from './components/DebugPanel';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
+import { OperatorList } from './components/OperatorList';
 import { MoreActionsMenu } from './components/MoreActionsMenu';
 import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
+import type { MorseSession } from './hooks/useMorseSession';
 import { useMorseKey } from './hooks/useMorseKey';
+import { MAX_NAME_LENGTH } from './settings/operatorName';
+
+function WelcomeScreen({ session }: { session: MorseSession }) {
+  const [nameDraft, setNameDraft] = useState<string>();
+  const name = nameDraft ?? session.name;
+
+  return (
+    <section
+      className="mx-auto flex w-full max-w-lg flex-col items-center py-8 text-center sm:py-16"
+      aria-labelledby="welcome-heading"
+    >
+      <p className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-accent">
+        Live Morse channel
+      </p>
+      <h2
+        id="welcome-heading"
+        className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl"
+      >
+        A conversation in
+        <br />
+        dots and dashes.
+      </h2>
+      <form
+        className="mt-8 w-full max-w-xs"
+        onSubmit={event => {
+          event.preventDefault();
+          void session.startAudio(name);
+        }}
+      >
+        <label
+          htmlFor="join-name"
+          className="mb-2 block text-left text-sm font-medium"
+        >
+          Callsign or name
+        </label>
+        <input
+          id="join-name"
+          type="text"
+          autoComplete="nickname"
+          autoCapitalize="off"
+          spellCheck={false}
+          maxLength={MAX_NAME_LENGTH}
+          value={name}
+          disabled={session.starting}
+          onChange={event => setNameDraft(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter' && event.nativeEvent.isComposing)
+              event.preventDefault();
+          }}
+          className="min-h-12 w-full min-w-0 rounded-xl border border-stroke bg-surface px-4 py-2 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50"
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          className="mt-4 w-full"
+          disabled={session.starting}
+        >
+          <FaBroadcastTower aria-hidden="true" />
+          {session.starting ? 'Connecting…' : 'Connect'}
+        </Button>
+        <p className="mt-4 text-sm text-muted">Connecting enables sound.</p>
+      </form>
+    </section>
+  );
+}
 
 function App() {
   const [searchParams] = useSearchParams();
@@ -46,7 +113,7 @@ function App() {
       onBlur={input.cancel}
     >
       <header className="relative z-10 border-b border-stroke/60">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <FaBroadcastTower
               aria-hidden="true"
@@ -60,7 +127,9 @@ function App() {
             className="flex flex-wrap items-center gap-1 sm:gap-2"
           >
             <ConnectionStatus
-              readyState={session.readyState}
+              readyState={
+                session.starting ? ReadyState.CONNECTING : session.readyState
+              }
               operators={session.operators.length}
               latency={session.latency}
             />
@@ -110,44 +179,32 @@ function App() {
           </div>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-5xl grow flex-col justify-center px-4 py-8 sm:px-6 sm:py-12">
-        {showSettings ? (
-          <SettingsPanel
-            session={session}
-            onClose={() => setShowSettings(false)}
-          />
-        ) : (
-          <>
-            {!session.started ? (
-              <section
-                className="mx-auto flex max-w-lg flex-col items-center py-12 text-center sm:py-16"
-                aria-labelledby="welcome-heading"
-              >
-                <p className="mb-5 font-mono text-xs uppercase tracking-[0.2em] text-accent">
-                  Live Morse channel
-                </p>
-                <h2
-                  id="welcome-heading"
-                  className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl"
-                >
-                  A conversation in
-                  <br />
-                  dots and dashes.
-                </h2>
-                <Button
-                  variant="primary"
-                  className="mt-8"
-                  onClick={session.startAudio}
-                  disabled={session.starting}
-                >
-                  <FaBroadcastTower aria-hidden="true" />
-                  {session.starting ? 'Enabling sound…' : 'Join'}
-                </Button>
-                <p className="mt-4 text-sm text-muted">
-                  Joining enables sound.
-                </p>
-              </section>
-            ) : (
+      <main
+        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]' : 'flex flex-col justify-center'}`}
+      >
+        {session.started && (
+          <div className="min-w-0">
+            <OperatorList
+              operators={session.operators}
+              myOperatorId={session.myOperatorId}
+              activeOperatorIds={session.activeOperatorIds}
+              connected={connected}
+            />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col justify-center">
+          {showSettings && (
+            <SettingsPanel
+              session={session}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+          {!session.started ? (
+            <div hidden={showSettings}>
+              <WelcomeScreen session={session} />
+            </div>
+          ) : (
+            !showSettings && (
               <section
                 className="flex flex-col items-center text-center"
                 aria-label="Morse transmitter"
@@ -183,7 +240,10 @@ function App() {
                 </Button>
                 {!connected && (
                   <p className="mt-3 text-sm text-warning">
-                    Reconnecting · Local playback only
+                    {session.readyState === ReadyState.CONNECTING
+                      ? 'Connecting…'
+                      : 'Reconnecting…'}{' '}
+                    · Local playback only
                   </p>
                 )}
                 <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -200,70 +260,70 @@ function App() {
                   </Button>
                 </div>
               </section>
-            )}
-          </>
-        )}
-        {session.started && (
-          <div className="w-full">
-            <section
-              id="morse-reference"
-              hidden={showSettings || panel !== 'reference'}
-              aria-labelledby="reference-heading"
-              className="mt-8 rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-            >
-              <h2
-                id="reference-heading"
-                className="text-xl font-semibold tracking-tight"
+            )
+          )}
+          {session.started && (
+            <div className="w-full">
+              <section
+                id="morse-reference"
+                hidden={showSettings || panel !== 'reference'}
+                aria-labelledby="reference-heading"
+                className="mt-8 rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
               >
-                Morse reference
-              </h2>
-              <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-                Local playback · {session.wpm} WPM
-              </p>
-              <MorseCodeTable
-                onClick={character => session.playMyMorseCode(character.code)}
-              />
-            </section>
-            <section
-              id="morse-message"
-              hidden={showSettings || panel !== 'message'}
-              aria-labelledby="message-heading"
-              className="mx-auto mt-8 max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-            >
-              <div className="mb-4 flex items-center justify-between gap-3">
                 <h2
-                  id="message-heading"
+                  id="reference-heading"
                   className="text-xl font-semibold tracking-tight"
                 >
-                  Transmit text
+                  Morse reference
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Close text transmitter"
-                  onClick={() => {
-                    setPanel(null);
-                    moreActionsTrigger.current?.focus();
-                  }}
-                >
-                  <FaTimes aria-hidden="true" />
-                </Button>
-              </div>
-              <MorseCodeInput
-                inputRef={messageInput}
-                onSend={session.sendText}
-                connected={connected}
-                wpm={session.wpm}
-              />
-            </section>
-          </div>
-        )}
-        <p
-          role="status"
-          className="mx-auto mt-6 max-w-xl text-center text-sm leading-relaxed text-warning"
-        >
-          {session.notice}
-        </p>
+                <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
+                  Local playback · {session.wpm} WPM
+                </p>
+                <MorseCodeTable
+                  onClick={character => session.playMyMorseCode(character.code)}
+                />
+              </section>
+              <section
+                id="morse-message"
+                hidden={showSettings || panel !== 'message'}
+                aria-labelledby="message-heading"
+                className="mx-auto mt-8 max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+              >
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2
+                    id="message-heading"
+                    className="text-xl font-semibold tracking-tight"
+                  >
+                    Transmit text
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Close text transmitter"
+                    onClick={() => {
+                      setPanel(null);
+                      moreActionsTrigger.current?.focus();
+                    }}
+                  >
+                    <FaTimes aria-hidden="true" />
+                  </Button>
+                </div>
+                <MorseCodeInput
+                  inputRef={messageInput}
+                  onSend={session.sendText}
+                  connected={connected}
+                  wpm={session.wpm}
+                />
+              </section>
+            </div>
+          )}
+          <p
+            role="status"
+            className="mx-auto mt-6 max-w-xl text-center text-sm leading-relaxed text-warning"
+          >
+            {session.notice}
+          </p>
+        </div>
       </main>
       {debug && <DebugPanel session={session} />}
     </div>

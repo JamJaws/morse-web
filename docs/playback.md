@@ -11,6 +11,11 @@ Remote playback starts with 300 ms of scheduling reserve. This replaces the old
 200 ms offset plus Tone's 100 ms lookahead; remote scheduling now uses the audio
 clock directly. Local keying retains immediate feedback without network buffering.
 
+Operator highlights follow each remote operator's buffered playback. Your own
+sent key presses and unqueued text light up immediately, without audio lookahead.
+Queued text follows its playback slot, and private previews do not trigger activity.
+Manual activity stays lit for 350 ms after scheduled key-up to bridge short gaps.
+
 Each operator has one synchronous scheduler and a rolling estimator of
 `arrival time - sender timestamp`. Clocks need not share an epoch. The 5th
 percentile estimates the clock/transit baseline; the 99th percentile minus that
@@ -87,10 +92,10 @@ stall can therefore interrupt a held key; release and press again to resume.
 
 Disconnects clear remote queues and all queued local marks. Manual keying
 interrupts typed playback. Suspending the AudioContext disconnects playback and
-requires Join again. Typed queues are bounded to 120 seconds, messages to 2048
-Morse characters at 4–40 WPM, and manual queues to 2048 pending edges. Complete
-typed messages already received can play through a short JavaScript stall because
-their end times are known.
+requires clicking Connect again. Typed queues are bounded to 120 seconds,
+messages to 2048 Morse characters at 4–40 WPM, and manual queues to 2048 pending
+edges. Complete typed messages already received can play through a short
+JavaScript stall because their end times are known.
 
 ## WebSocket behavior
 
@@ -113,9 +118,9 @@ their end times are known.
 
 Application queue limits cannot remove data already accepted by TCP, an OS send
 buffer or a proxy. The receiver's late-event policy, cutoff and heartbeat are
-still needed. Browser timers may be throttled in the background, so return to
-Join if the audio context was suspended. This is an ephemeral relay, not a
-store-and-forward message service.
+still needed. Browser timers may be throttled in the background, so click
+Connect again if the audio context was suspended. This is an ephemeral relay,
+not a store-and-forward message service.
 
 ## Verification before merge
 
@@ -128,7 +133,7 @@ Relay tests cover real Ktor WebSocket ordering/validation and isolated outboxes.
 
 For a paired manual check, run the relay on port 8080 and `npm start` here; Vite
 proxies `/beep` to the relay. Open two tabs at `http://localhost:5173/?tx&debug`,
-click Join in each, and use headphones or low volume.
+click Connect in each, and use headphones or low volume.
 
 1. Send dots/dashes and type two messages quickly. Listen for preserved spacing
    and sequential typed playback. The debug view exposes target/applied reserve,
@@ -145,7 +150,8 @@ click Join in each, and use headphones or low volume.
    sustained healthy traffic. Ordinary DevTools HTTP throttling may not shape
    established WebSocket frames; confirm delivery timing actually changes.
 5. Change frequency, disconnect/reconnect, and check that it is retained. Suspend
-   the audio context or background the tab until it suspends: Join should return.
+   the audio context or background the tab until it suspends: the Connect screen
+   should return.
 
 Automated browser tests mock Tone and the socket hook; they verify scheduling and
 lifecycle logic, not actual device audio or browser background policy. The paired

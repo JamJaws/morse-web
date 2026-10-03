@@ -17,14 +17,20 @@ afterEach(() => {
 
 async function join() {
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   });
 }
 
 async function setOperators(operators: { id: string; frequency: number }[]) {
   await act(async () => {
     await mocks.onMessage?.({
-      data: JSON.stringify({ type: 'OPERATORS', operators }),
+      data: JSON.stringify({
+        type: 'OPERATORS',
+        operators: operators.map(operator => ({
+          ...operator,
+          name: operator.id,
+        })),
+      }),
     });
   });
 }

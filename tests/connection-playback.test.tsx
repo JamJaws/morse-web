@@ -28,7 +28,7 @@ async function join() {
     </MemoryRouter>,
   );
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
   });
   const button = screen.getByRole('button', { name: 'Morse key' });
   expect(document.activeElement).toBe(button);
@@ -44,7 +44,7 @@ function messages(type: string) {
 }
 const roster = {
   type: 'OPERATORS',
-  operators: [{ id: 'peer', frequency: 600 }],
+  operators: [{ id: 'peer', name: 'Peer', frequency: 600 }],
 };
 
 it('schedules a same-batch roster, down and up without losing the first tone', async () => {
@@ -184,7 +184,7 @@ it('measures correlated RTT and closes a persistently backed-up native socket', 
   expect(mocks.socket.close).toHaveBeenCalledOnce();
 });
 
-it('restores the chosen frequency on the next HELLO', async () => {
+it('restores the chosen frequency in the next JOIN', async () => {
   await join();
   act(() => {
     receive({ type: 'HELLO', operatorId: 'me', frequency: 700 });
@@ -198,10 +198,10 @@ it('restores the chosen frequency on the next HELLO', async () => {
     mocks.onOpen?.();
     receive({ type: 'HELLO', operatorId: 'new-me', frequency: 600 });
   });
-  expect(messages('FREQUENCY').at(-1).frequency).toBe(950);
+  expect(messages('JOIN').at(-1).frequency).toBe(950);
 });
 
-it('ignores malformed frames and requires Join after audio suspension', async () => {
+it('ignores malformed frames and requires Connect after audio suspension', async () => {
   await join();
   act(() => {
     mocks.onMessage?.({ data: '{broken' });
@@ -219,7 +219,7 @@ it('ignores malformed frames and requires Join after audio suspension', async ()
     mocks.context.state = 'suspended';
     mocks.context.on.mock.calls[0][1]();
   });
-  expect(screen.getByRole('button', { name: 'Join' })).toBeDefined();
+  expect(screen.getByRole('button', { name: 'Connect' })).toBeDefined();
   expect(mocks.socket.close).toHaveBeenCalledOnce();
 });
 

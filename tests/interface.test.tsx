@@ -17,13 +17,19 @@ function openApp() {
 }
 async function join() {
   await act(async () =>
-    fireEvent.click(screen.getByRole('button', { name: 'Join' })),
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
   );
 }
 function roster(operators: { id: string; frequency: number }[]) {
   act(() =>
     mocks.onMessage?.({
-      data: JSON.stringify({ type: 'OPERATORS', operators }),
+      data: JSON.stringify({
+        type: 'OPERATORS',
+        operators: operators.map(operator => ({
+          ...operator,
+          name: operator.id,
+        })),
+      }),
     }),
   );
 }
@@ -106,7 +112,7 @@ it('mutes local and current/new remote voices without losing the volume setting'
   expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).volume).toBe(80);
 });
 
-it('loads a saved frequency before the server hello and restores saved settings on screen', async () => {
+it('registers the saved frequency on join and restores saved settings on screen', async () => {
   localStorage.setItem(
     PREFERENCES_KEY,
     JSON.stringify({ volume: 35, frequency: 900, wpm: 25 }),
@@ -119,7 +125,7 @@ it('loads a saved frequency before the server hello and restores saved settings 
     }),
   );
   expect(mocks.sendMessage).toHaveBeenCalledWith(
-    JSON.stringify({ type: 'FREQUENCY', frequency: 900 }),
+    expect.stringContaining('"frequency":900'),
     false,
   );
   expect(mocks.oscillators[0].frequency).toBe(900);
@@ -162,7 +168,7 @@ it('allows retry after audio activation fails', async () => {
   openApp();
   await join();
   expect(
-    screen.getByText('Could not enable audio. Please try joining again.'),
+    screen.getByText('Could not enable audio. Please try connecting again.'),
   ).toBeDefined();
   expect(mocks.oscillators).toHaveLength(0);
   await join();

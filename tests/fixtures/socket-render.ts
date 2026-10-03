@@ -6,6 +6,7 @@ function SocketProbe() {
   const socket = useMorseSocket(
     () => {},
     () => {},
+    null,
   );
   return createElement('output', null, socket.readyState);
 }
