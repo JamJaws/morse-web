@@ -17,6 +17,7 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
 import { OperatorList } from './components/OperatorList';
 import { MoreActionsMenu } from './components/MoreActionsMenu';
+import { Footer } from './components/Footer';
 import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
 import type { MorseSession } from './hooks/useMorseSession';
@@ -326,6 +327,7 @@ function App() {
         </div>
       </main>
       {debug && <DebugPanel session={session} />}
+      <Footer />
     </div>
   );
 }
