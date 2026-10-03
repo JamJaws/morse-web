@@ -1,16 +1,7 @@
 import { useId, useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 import type { Operator } from '../network/protocol';
-
-function initials(name: string): string {
-  const words = name.trim().split(/\s+/);
-  const first = Array.from(words[0] ?? '');
-  return (
-    words.length > 1
-      ? `${first[0] ?? ''}${Array.from(words[words.length - 1])[0] ?? ''}`
-      : first.slice(0, 2).join('')
-  ).toUpperCase();
-}
+import { operatorAvatarText } from './operatorAvatar';
 
 export function OperatorList({
   operators,
@@ -76,6 +67,7 @@ export function OperatorList({
           <ul aria-label="Connected operators" className="space-y-1">
             {operators.map(operator => {
               const active = activeOperatorIds.has(operator.id);
+              const avatar = operatorAvatarText(operator.name);
               return (
                 <li
                   key={operator.id}
@@ -83,9 +75,9 @@ export function OperatorList({
                 >
                   <span
                     aria-hidden="true"
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-semibold ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted transition-colors motion-reduce:transition-none'}`}
+                    className={`flex size-8 shrink-0 items-center justify-center rounded-full border font-mono font-semibold ${Array.from(avatar).length > 3 ? 'text-[10px]' : 'text-xs'} ${active ? 'border-accent bg-accent text-accent-ink' : 'border-stroke bg-raised text-muted transition-colors motion-reduce:transition-none'}`}
                   >
-                    {initials(operator.name)}
+                    {avatar}
                   </span>
                   <div className="flex min-w-0 flex-1 items-baseline gap-2">
                     <span

@@ -17,6 +17,9 @@ it('identifies simultaneous transmitters without moving operators around', () =>
     />,
   );
   const originalRows = screen.getAllByRole('listitem');
+  expect(within(originalRows[0]).getByText('ABC')).toBeDefined();
+  expect(within(originalRows[0]).getByText('SA0ABC')).toBeDefined();
+  expect(within(originalRows[1]).getByText('AL')).toBeDefined();
   expect(within(originalRows[0]).getByText('You')).toBeDefined();
   expect(within(originalRows[1]).queryByText('You')).toBeNull();
 
