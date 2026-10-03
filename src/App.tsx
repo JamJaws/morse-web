@@ -327,7 +327,7 @@ function App() {
         </div>
       </main>
       {debug && <DebugPanel session={session} />}
-      <Footer />
+      <Footer withSidebar={session.started} />
     </div>
   );
 }
