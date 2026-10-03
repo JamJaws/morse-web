@@ -17,6 +17,7 @@ import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
 import { OperatorList } from './components/OperatorList';
 import { MoreActionsMenu } from './components/MoreActionsMenu';
+import { Footer } from './components/Footer';
 import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
 import type { MorseSession } from './hooks/useMorseSession';
@@ -179,8 +180,9 @@ function App() {
           </div>
         </div>
       </header>
+      {/* Equal side columns keep the transmitter centered across the page. */}
       <main
-        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]' : 'flex flex-col justify-center'}`}
+        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)_15rem]' : 'flex flex-col justify-center'}`}
       >
         {session.started && (
           <div className="min-w-0">
@@ -192,7 +194,7 @@ function App() {
             />
           </div>
         )}
-        <div className="flex min-w-0 flex-col justify-center">
+        <div className="flex min-w-0 flex-col">
           {showSettings && (
             <SettingsPanel
               session={session}
@@ -262,70 +264,74 @@ function App() {
               </section>
             )
           )}
-          {session.started && (
-            <div className="w-full">
-              <section
-                id="morse-reference"
-                hidden={showSettings || panel !== 'reference'}
-                aria-labelledby="reference-heading"
-                className="mt-8 rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-              >
-                <h2
-                  id="reference-heading"
-                  className="text-xl font-semibold tracking-tight"
-                >
-                  Morse reference
-                </h2>
-                <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-                  Local playback · {session.wpm} WPM
-                </p>
-                <MorseCodeTable
-                  onClick={character => session.playMyMorseCode(character.code)}
-                />
-              </section>
-              <section
-                id="morse-message"
-                hidden={showSettings || panel !== 'message'}
-                aria-labelledby="message-heading"
-                className="mx-auto mt-8 max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-              >
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h2
-                    id="message-heading"
-                    className="text-xl font-semibold tracking-tight"
-                  >
-                    Transmit text
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Close text transmitter"
-                    onClick={() => {
-                      setPanel(null);
-                      moreActionsTrigger.current?.focus();
-                    }}
-                  >
-                    <FaTimes aria-hidden="true" />
-                  </Button>
-                </div>
-                <MorseCodeInput
-                  inputRef={messageInput}
-                  onSend={session.sendText}
-                  connected={connected}
-                  wpm={session.wpm}
-                />
-              </section>
-            </div>
-          )}
           <p
             role="status"
-            className="mx-auto mt-6 max-w-xl text-center text-sm leading-relaxed text-warning"
+            className="mx-auto mt-6 max-w-xl text-center text-sm leading-relaxed text-warning empty:mt-0"
           >
             {session.notice}
           </p>
         </div>
+        {session.started && (
+          <div
+            hidden={showSettings || panel === null}
+            className="col-span-full mx-auto w-full max-w-5xl"
+          >
+            <section
+              id="morse-reference"
+              hidden={showSettings || panel !== 'reference'}
+              aria-labelledby="reference-heading"
+              className="rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+            >
+              <h2
+                id="reference-heading"
+                className="text-xl font-semibold tracking-tight"
+              >
+                Morse reference
+              </h2>
+              <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
+                Local playback · {session.wpm} WPM
+              </p>
+              <MorseCodeTable
+                onClick={character => session.playMyMorseCode(character.code)}
+              />
+            </section>
+            <section
+              id="morse-message"
+              hidden={showSettings || panel !== 'message'}
+              aria-labelledby="message-heading"
+              className="mx-auto max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2
+                  id="message-heading"
+                  className="text-xl font-semibold tracking-tight"
+                >
+                  Transmit text
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close text transmitter"
+                  onClick={() => {
+                    setPanel(null);
+                    moreActionsTrigger.current?.focus();
+                  }}
+                >
+                  <FaTimes aria-hidden="true" />
+                </Button>
+              </div>
+              <MorseCodeInput
+                inputRef={messageInput}
+                onSend={session.sendText}
+                connected={connected}
+                wpm={session.wpm}
+              />
+            </section>
+          </div>
+        )}
       </main>
       {debug && <DebugPanel session={session} />}
+      <Footer />
     </div>
   );
 }
