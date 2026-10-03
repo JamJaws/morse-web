@@ -25,9 +25,9 @@ export default function MorseCodeTable({
               .split('')
               .map(char => (char === '.' ? 'dot' : 'dash'))
               .join(' ')}`}
-            className="flex min-h-8 min-w-0 items-center justify-between gap-1 rounded-lg px-1 py-1 font-mono text-sm transition-colors hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none pointer-coarse:min-h-11"
+            className="flex min-h-8 min-w-0 items-center justify-start gap-2 rounded-lg px-0.5 py-1 font-mono text-sm transition-colors hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent motion-reduce:transition-none pointer-coarse:min-h-11"
           >
-            <span>{character.letter}</span>
+            <span className="w-[1ch] shrink-0">{character.letter}</span>
             <span
               aria-hidden="true"
               className="inline-flex shrink-0 items-center gap-0.5 text-accent"
