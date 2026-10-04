@@ -96,9 +96,10 @@ speed starts at 20 WPM. Replays are free; Show hint is scored separately.
 An incorrect answer automatically replays the same sound for another try. The
 first answer determines the score, so retries cannot turn a mistake into credit.
 
-Enable **Auto-play next sound** to advance after 750 ms of correct-answer
-feedback. Otherwise, select Next sound yourself. Autoplay stops at the round
-results. Pausing, leaving, switching tabs or changing sound settings cancels
+**Autoplay** is on by default: after 750 ms of correct-answer feedback, the
+next sound plays automatically. Turn it off in the practice card to select
+Next sound yourself. Autoplay stops at the round results.
+Pausing, leaving, switching tabs or changing sound settings cancels
 pending playback and advancement until you choose to continue.
 
 Training runs locally without Connect or a backend. Scores and sound-setting

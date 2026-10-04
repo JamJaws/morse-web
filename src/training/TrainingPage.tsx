@@ -62,16 +62,12 @@ function LessonList() {
         Learn the sound of Morse.
       </h2>
       <p className="mt-4 max-w-xl leading-relaxed text-muted">
-        Start with K and M, then add one character at a time. Listen to a sound
-        and choose what you heard. Each lesson includes everything before it.
+        Start with K and M, then add one character at a time. Each lesson builds
+        on the sounds before it.
       </p>
-      <div className="my-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-        <span>20 sounds per round</span>
-        <span>No time limit</span>
-      </div>
       <Link
         to="?practice=custom"
-        className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-stroke bg-surface p-5 hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+        className="my-6 flex items-center justify-between gap-4 rounded-2xl border border-stroke bg-surface p-5 hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
       >
         <div>
           <h3 className="font-semibold text-accent">Custom practice</h3>
@@ -96,14 +92,9 @@ function LessonList() {
                 {lesson.id}
               </span>
               <div className="min-w-0 grow">
-                <div className="flex items-baseline gap-3">
-                  <span className="font-mono text-xl font-semibold text-ink">
-                    {lesson.introduced.map(c => c.letter).join('  ')}
-                  </span>
-                  <span className="text-xs text-accent">
-                    {lesson.id === 1 ? 'Start here' : 'New character'}
-                  </span>
-                </div>
+                <span className="font-mono text-xl font-semibold text-ink">
+                  {lesson.introduced.map(c => c.letter).join('  ')}
+                </span>
                 <p className="mt-1.5 break-words font-mono text-xs leading-relaxed text-muted">
                   {lesson.characters.map(c => c.letter).join(' ')}
                 </p>
@@ -170,11 +161,6 @@ function ListeningPractice({
     }
   }
 
-  const active =
-    round.phase === 'playing' ||
-    round.phase === 'answering' ||
-    round.phase === 'retry' ||
-    round.phase === 'paused';
   const question =
     'score' in round
       ? Math.min(
@@ -199,260 +185,285 @@ function ListeningPractice({
           {lesson ? `Lesson ${lesson.id}` : 'Custom practice'}
         </h2>
         <p className="text-sm text-muted">
-          {characters.length} characters · Listening
+          {characters.length}{' '}
+          {characters.length === 1 ? 'character' : 'characters'}
         </p>
       </div>
-      <label className="mt-4 inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm text-muted">
-        <input
-          type="checkbox"
-          checked={session.autoPlay}
-          onChange={event => session.changeAutoPlay(event.target.checked)}
-          className="h-5 w-5 accent-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-        />
-        Auto-play next sound
-      </label>
-      {round.phase === 'intro' ? (
-        <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 sm:p-8">
-          {lesson ? (
-            <>
-              <p className="text-sm font-medium text-muted">
-                {lesson.id === 1 ? 'Your first sounds' : 'Meet the new sound'}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                {lesson.introduced.map(character => (
-                  <Button
-                    key={character.letter}
-                    className="min-w-28 flex-col gap-4 p-5"
-                    aria-label={`Hear ${character.letter}`}
-                    onClick={() => void session.preview(character)}
-                  >
-                    <span className="font-mono text-4xl">
-                      {character.letter}
-                    </span>
-                    <Pattern character={character} />
-                    <span className="flex items-center gap-2 text-xs text-muted">
-                      <FaVolumeUp aria-hidden="true" />
-                      {session.previewing === character.letter
-                        ? 'Playing…'
-                        : 'Hear sound'}
-                    </span>
-                  </Button>
-                ))}
-              </div>
-              <p className="mt-6 max-w-lg leading-relaxed text-muted">
-                Listen for the whole rhythm. Then answer with a character button
-                or your keyboard. Take as long as you need.
-              </p>
-              <p className="mt-4 text-sm leading-relaxed text-muted">
-                This lesson:{' '}
-                <span className="font-mono text-ink">
-                  {characters.map(c => c.letter).join(' ')}
-                </span>
-              </p>
-            </>
-          ) : (
-            picker
-          )}
-          <Button
-            variant="primary"
-            className="mt-6"
-            onClick={session.start}
-            disabled={characters.length === 0}
-          >
-            <FaPlay aria-hidden="true" />
-            {lesson ? 'Start lesson' : 'Start practice'}
-          </Button>
+      <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-stroke/60 px-5 py-2 sm:px-8">
+          <p className="text-sm text-muted tabular-nums">
+            {round.phase === 'intro' || round.phase === 'complete'
+              ? `${ROUND_LENGTH} sounds`
+              : `Sound ${question} of ${ROUND_LENGTH}`}
+          </p>
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+            Autoplay
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label="Autoplay next sound"
+              checked={session.autoPlay}
+              onChange={event => session.changeAutoPlay(event.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-stroke p-0.5 transition-colors peer-checked:bg-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-accent motion-reduce:transition-none"
+            >
+              <span
+                className={`h-4 w-4 rounded-full transition-transform motion-reduce:transition-none ${session.autoPlay ? 'translate-x-4 bg-accent-ink' : 'bg-ink'}`}
+              />
+            </span>
+          </label>
         </div>
-      ) : round.phase === 'complete' ? (
-        <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 sm:p-8">
-          <h3 className="text-lg font-semibold">Round complete</h3>
-          <p className="mt-6 text-5xl font-semibold text-accent tabular-nums">
-            {Math.round((round.score.correct / ROUND_LENGTH) * 100)}%
-          </p>
-          <p className="mt-2 text-muted">
-            {round.score.correct} of {ROUND_LENGTH} correct without hints
-          </p>
-          <p className="mt-4 text-sm text-muted">
-            {round.score.hinted} correct with a hint ·{' '}
-            {ROUND_LENGTH - round.score.correct - round.score.hinted} incorrect
-          </p>
-          <p className="mt-6 max-w-lg leading-relaxed text-muted">
-            {lesson
-              ? 'Aim for about 90% without hints over several rounds, then try the next lesson. Move on whenever you feel ready.'
-              : 'Repeat this set or choose other characters to practise.'}
-          </p>
-          <Button
-            ref={repeatButton}
-            variant="primary"
-            className="mt-6"
-            onClick={session.start}
-          >
-            {lesson ? 'Repeat lesson' : 'Repeat practice'}
-          </Button>
-        </div>
-      ) : (
-        <div
-          ref={exercise}
-          tabIndex={-1}
-          aria-label="Listening exercise"
-          className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 outline-none sm:p-8"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-            <p>
-              Sound {question} of {ROUND_LENGTH}
-            </p>
-            <p>{round.score.correct} correct without hints</p>
-          </div>
-          <div
-            className="flex min-h-48 flex-col items-center justify-center py-6 text-center"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {round.phase === 'feedback' ? (
+        {round.phase === 'intro' ? (
+          <div className="p-5 sm:p-8">
+            {lesson ? (
               <>
-                <h3 className="text-xl font-semibold text-success">
-                  {round.prompt.missed
-                    ? 'Correct on retry.'
-                    : round.prompt.hint
-                      ? 'Correct, with a hint.'
-                      : 'Correct!'}
-                </h3>
-                <span className="mb-3 mt-4 font-mono text-4xl">
-                  {round.prompt.character.letter}
-                </span>
-                <Pattern character={round.prompt.character} />
-                {round.paused && (
-                  <p className="mt-3 text-sm text-muted">Paused</p>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  {lesson.introduced.map(character => (
+                    <Button
+                      key={character.letter}
+                      className="min-w-28 flex-col gap-4 p-5"
+                      aria-label={`Hear ${character.letter}`}
+                      onClick={() => void session.preview(character)}
+                    >
+                      <span className="font-mono text-4xl">
+                        {character.letter}
+                      </span>
+                      <Pattern character={character} />
+                      <span className="flex items-center gap-2 text-xs text-muted">
+                        <FaVolumeUp aria-hidden="true" />
+                        {session.previewing === character.letter
+                          ? 'Playing…'
+                          : 'Hear sound'}
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+                <p className="mt-6 max-w-lg leading-relaxed text-muted">
+                  Listen, then choose a character or type its key.
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-muted">
+                  This lesson:{' '}
+                  <span className="font-mono text-ink">
+                    {characters.map(c => c.letter).join(' ')}
+                  </span>
+                </p>
               </>
             ) : (
-              <>
-                <FaHeadphones
-                  aria-hidden="true"
-                  className="mb-4 text-3xl text-accent"
-                />
-                <h3
-                  className={`text-xl font-semibold ${round.phase === 'retry' ? 'text-warning' : ''}`}
-                >
-                  {round.phase === 'playing'
-                    ? 'Listen…'
-                    : round.phase === 'paused'
-                      ? 'Paused'
-                      : round.phase === 'retry'
-                        ? 'Try again.'
-                        : 'What did you hear?'}
-                </h3>
-                <p className="mt-2 text-sm text-muted">
-                  {round.phase === 'playing'
-                    ? 'Wait for the whole sound.'
-                    : round.phase === 'paused'
-                      ? 'Resume to hear this sound from the start.'
-                      : round.phase === 'retry'
-                        ? 'Listen to the same sound again.'
-                        : 'Choose a character or type its key.'}
-                </p>
-                {round.prompt.hint && (
-                  <div className="mt-4 flex items-center gap-4">
-                    <span className="font-mono text-2xl">
-                      {round.prompt.character.letter}
-                    </span>
-                    <Pattern character={round.prompt.character} />
-                  </div>
-                )}
-                {round.prompt.hint && (
-                  <p className="mt-3 text-xs text-muted">
-                    Hint shown for this sound.
-                  </p>
-                )}
-              </>
+              picker
             )}
+            <Button
+              variant="primary"
+              className="mt-6"
+              onClick={session.start}
+              disabled={characters.length === 0}
+            >
+              <FaPlay aria-hidden="true" />
+              {lesson ? 'Start lesson' : 'Start practice'}
+            </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {round.phase === 'feedback' ? (
-              <>
+        ) : round.phase === 'complete' ? (
+          <div className="p-5 sm:p-8">
+            <h3 className="text-lg font-semibold">Round complete</h3>
+            <p className="mt-6 text-5xl font-semibold text-accent tabular-nums">
+              {Math.round((round.score.correct / ROUND_LENGTH) * 100)}%
+            </p>
+            <p className="mt-2 text-muted">
+              {round.score.correct} of {ROUND_LENGTH} correct without hints
+            </p>
+            <p className="mt-4 text-sm text-muted">
+              {round.score.hinted} correct with a hint ·{' '}
+              {ROUND_LENGTH - round.score.correct - round.score.hinted}{' '}
+              incorrect
+            </p>
+            <p className="mt-6 max-w-lg leading-relaxed text-muted">
+              {lesson
+                ? 'Aim for 90% without hints over a few rounds before adding another character.'
+                : 'Repeat this set or choose other characters to practise.'}
+            </p>
+            <Button
+              ref={repeatButton}
+              variant="primary"
+              className="mt-6"
+              onClick={session.start}
+            >
+              {lesson ? 'Repeat lesson' : 'Repeat practice'}
+            </Button>
+          </div>
+        ) : (
+          <div
+            ref={exercise}
+            tabIndex={-1}
+            aria-label="Listening exercise"
+            className="p-5 outline-none sm:p-8"
+          >
+            <div
+              className="flex min-h-48 flex-col items-center justify-center py-6 text-center"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {round.phase === 'feedback' ? (
+                <>
+                  <h3 className="text-xl font-semibold text-success">
+                    {round.prompt.missed
+                      ? 'Correct on retry.'
+                      : round.prompt.hint
+                        ? 'Correct, with a hint.'
+                        : 'Correct!'}
+                  </h3>
+                  <span className="mb-3 mt-4 font-mono text-4xl">
+                    {round.prompt.character.letter}
+                  </span>
+                  <Pattern character={round.prompt.character} />
+                  {round.paused && (
+                    <p className="mt-3 text-sm text-muted">Paused</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <FaHeadphones
+                    aria-hidden="true"
+                    className="mb-4 text-3xl text-accent"
+                  />
+                  <h3
+                    className={`text-xl font-semibold ${round.phase === 'retry' ? 'text-warning' : ''}`}
+                  >
+                    {round.phase === 'playing'
+                      ? 'Listen…'
+                      : round.phase === 'paused'
+                        ? 'Paused'
+                        : round.phase === 'retry'
+                          ? 'Try again.'
+                          : 'What did you hear?'}
+                  </h3>
+                  {round.prompt.hint && (
+                    <div className="mt-4 flex items-center gap-4">
+                      <span className="font-mono text-2xl">
+                        {round.prompt.character.letter}
+                      </span>
+                      <Pattern character={round.prompt.character} />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div
+              aria-label="Answer choices"
+              role="group"
+              className="grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-2"
+            >
+              {characters.map(character => (
                 <Button
-                  ref={nextButton}
+                  key={character.letter}
+                  className="min-h-12 px-2 font-mono text-xl"
+                  aria-label={`Answer ${character.letter}`}
+                  disabled={round.phase !== 'answering'}
+                  onClick={() => session.answer(character.letter)}
+                >
+                  {character.letter}
+                </Button>
+              ))}
+            </div>
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stroke/60 pt-4">
+              {round.phase === 'feedback' ? (
+                <>
+                  <Button
+                    ref={nextButton}
+                    variant="primary"
+                    onClick={session.next}
+                  >
+                    {round.score.answered === ROUND_LENGTH
+                      ? 'See results'
+                      : 'Next sound'}
+                    <FaArrowRight aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => void session.preview(round.prompt.character)}
+                  >
+                    <FaVolumeUp aria-hidden="true" />
+                    {session.previewing ? 'Playing…' : 'Hear answer'}
+                  </Button>
+                  {(session.previewing ||
+                    (session.autoPlay && !round.paused)) && (
+                    <Button variant="ghost" onClick={session.pause}>
+                      <FaPause aria-hidden="true" />
+                      Pause
+                    </Button>
+                  )}
+                </>
+              ) : round.phase === 'paused' ? (
+                <Button
+                  ref={resumeButton}
                   variant="primary"
-                  onClick={session.next}
+                  onClick={session.replay}
                 >
-                  {round.score.answered === ROUND_LENGTH
-                    ? 'See results'
-                    : 'Next sound'}
-                  <FaArrowRight aria-hidden="true" />
+                  <FaPlay aria-hidden="true" />
+                  Resume
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => void session.preview(round.prompt.character)}
-                >
-                  <FaVolumeUp aria-hidden="true" />
-                  {session.previewing ? 'Playing…' : 'Hear answer'}
-                </Button>
-                {(session.previewing ||
-                  (session.autoPlay && !round.paused)) && (
+              ) : (
+                <>
+                  <Button
+                    onClick={session.replay}
+                    disabled={round.phase !== 'answering'}
+                  >
+                    <FaVolumeUp aria-hidden="true" />
+                    Replay
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={session.hint}
+                    disabled={round.phase !== 'answering' || round.prompt.hint}
+                  >
+                    Show hint
+                  </Button>
                   <Button variant="ghost" onClick={session.pause}>
                     <FaPause aria-hidden="true" />
                     Pause
                   </Button>
-                )}
-              </>
-            ) : round.phase === 'paused' ? (
-              <Button
-                ref={resumeButton}
-                variant="primary"
-                onClick={session.replay}
-              >
-                <FaPlay aria-hidden="true" />
-                Resume
-              </Button>
-            ) : (
-              <>
-                <Button
-                  onClick={session.replay}
-                  disabled={round.phase !== 'answering'}
-                >
-                  <FaVolumeUp aria-hidden="true" />
-                  Replay
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={session.hint}
-                  disabled={round.phase !== 'answering' || round.prompt.hint}
-                >
-                  Show hint
-                </Button>
-                <Button variant="ghost" onClick={session.pause}>
-                  <FaPause aria-hidden="true" />
-                  Pause
-                </Button>
-              </>
-            )}
-          </div>
-          {active && (
-            <p className="mt-4 text-xs leading-relaxed text-muted">
-              First answers count. Replays are free; hints are scored
-              separately.
+                </>
+              )}
+            </div>
+            <p className="mt-4 text-sm text-muted">
+              {round.score.correct} correct without hints
             </p>
-          )}
-          <div
-            aria-label="Answer choices"
-            role="group"
-            className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-2"
-          >
-            {characters.map(character => (
-              <Button
-                key={character.letter}
-                className="min-h-12 px-2 font-mono text-xl"
-                aria-label={`Answer ${character.letter}`}
-                disabled={round.phase !== 'answering'}
-                onClick={() => session.answer(character.letter)}
-              >
-                {character.letter}
-              </Button>
-            ))}
           </div>
-        </div>
-      )}
+        )}
+        <details className="border-t border-stroke/60">
+          <summary className="min-h-11 cursor-pointer rounded-b-2xl px-5 py-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:px-8">
+            Sound settings{' '}
+            <span className="ml-2 font-normal text-muted">
+              {session.settings.wpm} WPM
+            </span>
+          </summary>
+          <div className="space-y-6 px-5 pb-5 sm:px-8 sm:pb-8">
+            <RangeControl
+              id="training-speed"
+              label="Character speed"
+              value={session.settings.wpm}
+              min={10}
+              max={40}
+              unit="WPM"
+              spokenUnit="words per minute"
+              onChange={value => session.changeSetting('wpm', value)}
+            />
+            <RangeControl
+              id="training-volume"
+              label="Volume"
+              value={session.settings.volume}
+              min={0}
+              max={100}
+              unit="%"
+              spokenUnit="percent"
+              onChange={value => session.changeSetting('volume', value)}
+            />
+            <p className="text-xs text-muted">Changes pause playback.</p>
+          </div>
+        </details>
+      </div>
       {session.error && (
         <p
           role="alert"
@@ -461,40 +472,7 @@ function ListeningPractice({
           {session.error}
         </p>
       )}
-      <details className="mt-5 rounded-2xl border border-stroke/60 bg-surface">
-        <summary className="min-h-11 cursor-pointer rounded-2xl px-5 py-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent">
-          Sound settings{' '}
-          <span className="ml-2 font-normal text-muted">
-            {session.settings.wpm} WPM characters
-          </span>
-        </summary>
-        <div className="space-y-6 px-5 pb-5">
-          <RangeControl
-            id="training-speed"
-            label="Character speed"
-            description="20 WPM helps you learn the rhythm of each character. Answers are always untimed."
-            value={session.settings.wpm}
-            min={10}
-            max={40}
-            unit="WPM"
-            spokenUnit="words per minute"
-            onChange={value => session.changeSetting('wpm', value)}
-          />
-          <RangeControl
-            id="training-volume"
-            label="Volume"
-            value={session.settings.volume}
-            min={0}
-            max={100}
-            unit="%"
-            spokenUnit="percent"
-            onChange={value => session.changeSetting('volume', value)}
-          />
-          <p className="text-xs text-muted">Changes pause playback.</p>
-        </div>
-      </details>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted">Leaving practice clears the round.</p>
+      <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
         {lesson && lesson.id < lessons.length && (
           <Link className={linkStyle} to={`?lesson=${lesson.id + 1}`}>
             Next lesson

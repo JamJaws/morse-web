@@ -37,8 +37,8 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
   const [player] = useState(() => new LocalMorsePlayer());
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [autoPlay, setAutoPlay] = useState(false);
-  const autoPlayEnabled = useRef(false);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const autoPlayEnabled = useRef(true);
   const transition = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );

@@ -3,7 +3,7 @@
 Status: listening release implemented (milestones 1 and 2). Sending remains the
 next feature.
 
-Created and updated: 2026-10-04. Repository baseline: main at 17b5347,
+Created: 2026-10-04. Updated: 2026-10-05. Repository baseline: main at 17b5347,
 including the reference sidebar and listening notes from PR #167.
 
 Keep this document current as implementation progresses. The decisions below
@@ -147,8 +147,9 @@ Defaults and scoring:
   that success in a multiple-choice round proves fluent Morse reception.
 - Allow ordinary playback controls such as volume and speed, using in-memory
   values for the current visit. No new persisted training preferences.
-- **Auto-play next sound** is optional and off by default. After a correct
-  response, show feedback for 750 ms before the next prompt (or round results).
+- **Autoplay** is on by default, with a switch in the practice card to turn it
+  off for manual advancement. After a correct response, show feedback for
+  750 ms before the next prompt (or round results).
   An answer example must finish before that delay starts. Wrong-answer replay
   works with either setting. The choice stays in memory for the current lesson
   or custom practice visit.
@@ -301,16 +302,19 @@ Possible commit subjects:
   counters and temporary sound controls. There is no attempt history or
   persistence. Replays are free; only hints affect the first-answer score.
   Wrong answers automatically replay the same prompt, with one mistake recorded
-  when the prompt is eventually answered correctly. Optional autoplay uses one
-  cancellable timer shared by retry and feedback transitions.
+  when the prompt is eventually answered correctly. Autoplay starts enabled
+  and uses one cancellable timer shared by retry and feedback transitions.
 - `src/training/TrainingPage.tsx` provides the lesson list, custom practice, examples, character
-  buttons/keyboard input, feedback and round results. Sound settings apply to
-  the current lesson and reset when it is left. Only the existing saved volume
-  is read; the receiving speed always starts at 20 WPM.
+  buttons/keyboard input, feedback and round results. The practice card groups
+  an accessible autoplay switch, answers, secondary playback controls and sound
+  settings. Lesson rows show the introduced characters and cumulative set;
+  repeated hints and instructional labels have been removed. Sound settings
+  apply to the current lesson and reset when it is left. Only the existing
+  saved volume is read; the receiving speed always starts at 20 WPM.
 - `src/routes.tsx` keeps Training and Live as sibling routes. The shared header
   is presentation only, so live connections and tones are cleaned up on exit.
 
-Verification on 2026-10-04:
+Verification on 2026-10-05:
 
 - All **213 Vitest tests** pass, including 20 training tests for curriculum,
   scheduling/cancellation, scoring, navigation, blocked storage, keyboard
@@ -319,7 +323,8 @@ Verification on 2026-10-04:
   its bundle-size warning; no runtime dependencies were added.
 - A Chromium smoke check against the production build passed desktop and
   320/375 px layouts, native Web Audio completion, keyboard input/focus,
-  replay scoring, all 40 course answer choices, custom ÅÄÖ practice, autoplay,
+  replay scoring, all 40 course answer choices, custom ÅÄÖ practice, default
+  autoplay, keyboard/touch operation of the switch,
   reload reset and return to Live.
   Training produced no storage writes, API requests or WebSocket connections.
 - Physical-device audio, iOS/Safari and screen-reader listening still need
@@ -334,7 +339,7 @@ Verification on 2026-10-04:
 | Minimal client state; no new training persistence     | Chosen by user; implemented here as current-round-only state                      |
 | Koch progression with G4FON's sequence                | Updated at user's request after checking the Morsy guide and established trainers |
 | Local receiving first, sending second                 | Original requested order                                                          |
-| 20 WPM receiving, 20-prompt rounds, optional autoplay | Manual advancement by default; autoplay uses 750 ms successful feedback           |
+| 20 WPM receiving, 20-prompt rounds, optional autoplay | Autoplay on by default at user's request; 750 ms successful feedback              |
 | Custom sets including ÅÄÖ and free replays            | Requested by user on 2026-10-04; implemented without persistence                  |
 | Saved/adaptive progress                               | Removed from current scope                                                        |
 

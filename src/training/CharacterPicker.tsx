@@ -38,9 +38,6 @@ export function CharacterPicker({ value, onChange }: CharacterPickerProps) {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold">Choose your characters</h3>
-        <p className="mt-2 text-sm text-muted">
-          Pick a set, then add or remove any characters.
-        </p>
         <div
           role="group"
           aria-label="Quick sets"

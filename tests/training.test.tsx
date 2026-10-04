@@ -51,9 +51,7 @@ async function advance(ms: number) {
   });
 }
 function toggleAutoplay() {
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: 'Auto-play next sound' }),
-  );
+  fireEvent.click(screen.getByRole('switch', { name: 'Autoplay next sound' }));
 }
 
 it('shows all lessons and honours bookmarked, invalid and final lesson URLs without connecting', async () => {
@@ -87,7 +85,13 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
     ).disabled,
   ).toBe(true);
   await click('ÅÄÖ');
-  toggleAutoplay();
+  expect(
+    (
+      screen.getByRole('switch', {
+        name: 'Autoplay next sound',
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
   expect(screen.getByText('3 characters selected')).toBeDefined();
   await click('Start practice');
   expect(
@@ -121,9 +125,15 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
   expect(screen.getByText('Choose at least one character.')).toBeDefined();
 });
 
-it('replays an incorrect sound automatically and advances only after a correct retry', async () => {
+it('enables autoplay by default, replays incorrect sounds and advances after a correct retry', async () => {
   open();
-  toggleAutoplay();
+  expect(
+    (
+      screen.getByRole('switch', {
+        name: 'Autoplay next sound',
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
   await click('Start lesson');
   await finishSound();
   await click('Answer M');
@@ -156,7 +166,6 @@ it('replays an incorrect sound automatically and advances only after a correct r
 
 it('cancels delayed advancement when hidden or paused and does not resume automatically', async () => {
   open();
-  toggleAutoplay();
   await click('Start lesson');
   await finishSound();
   await click('Answer K');
@@ -193,7 +202,6 @@ it('cancels delayed advancement when hidden or paused and does not resume automa
 
 it('lets autoplay be disabled and manual Next or navigation cancel pending callbacks', async () => {
   open();
-  toggleAutoplay();
   await click('Start lesson');
   await finishSound();
   await click('Answer K');
@@ -210,6 +218,16 @@ it('lets autoplay be disabled and manual Next or navigation cancel pending callb
   await finishSound();
   expect(mocks.oscillators).toHaveLength(voices);
   expect(screen.getByRole('list', { name: 'Listening lessons' })).toBeDefined();
+  fireEvent.click(screen.getByRole('link', { name: 'Lesson 1: K and M' }));
+  toggleAutoplay();
+  fireEvent.click(screen.getByRole('link', { name: 'Next lesson' }));
+  expect(
+    (
+      screen.getByRole('switch', {
+        name: 'Autoplay next sound',
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
 });
 
 it('waits for a feedback example to finish before autoplaying the next sound', async () => {
@@ -217,7 +235,6 @@ it('waits for a feedback example to finish before autoplaying the next sound', a
   fireEvent.change(screen.getByLabelText('Character speed'), {
     target: { value: 10 },
   });
-  toggleAutoplay();
   await click('Start lesson');
   await finishSound();
   await click('Answer K');
@@ -234,7 +251,6 @@ it('waits for a feedback example to finish before autoplaying the next sound', a
 
 it('cancels automatic retry and advance when the audio context is suspended', async () => {
   open();
-  toggleAutoplay();
   await click('Start lesson');
   await finishSound();
   await click('Answer M');
@@ -275,11 +291,12 @@ it('supports a single selected character and clears quick sets without duplicate
 
 it('scores first answers once, allows free replays and separates visual hints', async () => {
   open();
+  toggleAutoplay();
   await click('Start lesson');
   // Neither button nor keyboard answers may bypass the whole sound.
   await click('Answer K');
   fireEvent.keyDown(screen.getByLabelText('Listening exercise'), { key: 'k' });
-  expect(screen.getByText('Wait for the whole sound.')).toBeDefined();
+  expect(screen.getByRole('heading', { name: 'Listen…' })).toBeDefined();
   await finishSound();
   await act(async () => {
     const exercise = screen.getByLabelText('Listening exercise');
