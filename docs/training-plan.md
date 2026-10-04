@@ -118,9 +118,10 @@ static lessons; an invalid value falls back to the lesson list. Returning to
 2. Play one random character from that lesson's cumulative pool.
 3. Answer using labelled character buttons or the corresponding keyboard key.
    Accept scored input only after the complete character has played.
-4. Give brief feedback. On an error, show the correct character and offer
-   replay. Put the dot/dash pattern in the introduction, hint or correction;
-   normal answers should depend on listening.
+4. Give brief feedback. On an error, show "Try again", wait 400 ms and replay
+   the same sound without revealing the answer. Keep that prompt until a
+   correct response; its first wrong answer remains a mistake in the score.
+   Put the pattern in introductions, explicit hints and successful feedback.
 5. End the round with a simple score and **Repeat**, **Next lesson** and
    **All lessons** actions. Next lesson is available regardless of score and
    is omitted at the end of the course.
@@ -134,19 +135,28 @@ Defaults and scoring:
 - Choose uniformly from the lesson pool. Natural repeats are allowed, including
   in the two-character first lesson. No adaptive weighting or remembered
   weaknesses; a short round need not cover every character in later lessons.
-- Count each prompt once. A wrong first answer stays wrong; hint/replay-assisted
-  success is recorded separately from unaided success. Interrupted playback
-  and cancelled prompts do not count as mistakes.
+- Count each prompt once. A wrong first answer stays wrong even after several
+  retries. Replays (including Resume) are free. Only an explicit Show hint
+  changes a first correct answer into the separate hinted category.
+  Interrupted playback and cancelled prompts do not count as mistakes.
 - Keep a few current-round counters and the current prompt, not a saved history
-  of attempts. At the end, show unaided accuracy and any assisted-answer count.
+  of attempts. At the end, show first-answer accuracy without hints, hinted
+  answers and mistakes.
 - Give lightweight guidance to repeat until the user regularly reaches about
   **90% accuracy**. This is guidance, not a gate, saved mastery score or claim
   that success in a multiple-choice round proves fluent Morse reception.
 - Allow ordinary playback controls such as volume and speed, using in-memory
   values for the current visit. No new persisted training preferences.
+- **Auto-play next sound** is optional and off by default. After a correct
+  response, show feedback for 750 ms before the next prompt (or round results).
+  An answer example must finish before that delay starts. Wrong-answer replay
+  works with either setting. The choice stays in memory for the current lesson
+  or custom practice visit.
 - Leaving the training page or refreshing discards the round. Pause/audio
   suspension may retain the current round while the page is mounted, but never
-  resume sound automatically.
+  resume sound automatically. Cancel both feedback/retry timers and audio on
+  pause, hidden tabs, audio suspension, leaving or changing the custom set.
+  Next sound, Resume or explicitly enabling autoplay may continue the round.
 
 Farnsworth spacing preserves normal element timing and stretches the spaces
 between characters/words. A second speed slider adds little to an answer-paced
@@ -263,8 +273,11 @@ Possible commit subjects:
   URLs and browser navigation.
 - Verify complete-character playback, correct timing, replay cancellation,
   audio-start failures and interrupted rounds. No stale tones or auto-resume.
-- Test scoring with wrong answers, assisted answers, repeats and cancelled
+- Test scoring with wrong answers, hints, free replays, repeats and cancelled
   prompts. Every lesson is accessible independently of prior scores.
+- Check autoplay timing, repeated wrong answers, toggling autoplay, manual Next
+  during a scheduled advance, final-round completion and cancellation while
+  feedback or a retry is pending.
 - Verify that training makes no persistence writes, that leaving/reloading
   discards the round, and that blocked storage does not prevent practice.
 - For sending, use timing fixtures for valid/invalid/ambiguous patterns, extra
@@ -286,8 +299,10 @@ Possible commit subjects:
   cancellation also guards delayed audio activation and completion callbacks.
 - `src/training/useListeningRound.ts` holds only the current prompt, round
   counters and temporary sound controls. There is no attempt history or
-  persistence. A correct answer after replay/hint is counted separately;
-  re-hearing an already completed prompt after Pause also counts as assistance.
+  persistence. Replays are free; only hints affect the first-answer score.
+  Wrong answers automatically replay the same prompt, with one mistake recorded
+  when the prompt is eventually answered correctly. Optional autoplay uses one
+  cancellable timer shared by retry and feedback transitions.
 - `src/training/TrainingPage.tsx` provides the lesson list, custom practice, examples, character
   buttons/keyboard input, feedback and round results. Sound settings apply to
   the current lesson and reset when it is left. Only the existing saved volume
@@ -297,14 +312,15 @@ Possible commit subjects:
 
 Verification on 2026-10-04:
 
-- All **206 Vitest tests** pass, including 13 new tests for curriculum,
+- All **213 Vitest tests** pass, including 20 training tests for curriculum,
   scheduling/cancellation, scoring, navigation, blocked storage, keyboard
   input and live-session cleanup.
 - Type checking, ESLint, Prettier and the production build pass. Vite retains
   its bundle-size warning; no runtime dependencies were added.
 - A Chromium smoke check against the production build passed desktop and
   320/375 px layouts, native Web Audio completion, keyboard input/focus,
-  replay scoring, all 41 answer choices, reload reset and return to Live.
+  replay scoring, all 40 course answer choices, custom ÅÄÖ practice, autoplay,
+  reload reset and return to Live.
   Training produced no storage writes, API requests or WebSocket connections.
 - Physical-device audio, iOS/Safari and screen-reader listening still need
   practical trials. Headless playback checks validate scheduling and browser
@@ -312,14 +328,15 @@ Verification on 2026-10-04:
 
 ## Decision log and handoff
 
-| Decision                                               | Status                                                                            |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| Simple list with all lessons available                 | Chosen by user on 2026-10-04                                                      |
-| Minimal client state; no new training persistence      | Chosen by user; implemented here as current-round-only state                      |
-| Koch progression with G4FON's sequence                 | Updated at user's request after checking the Morsy guide and established trainers |
-| Local receiving first, sending second                  | Original requested order                                                          |
-| 20 WPM receiving, 20-prompt rounds, manual advancement | Implementation defaults; tune from practical trials                               |
-| Saved/adaptive progress                                | Removed from current scope                                                        |
+| Decision                                              | Status                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Simple list with all lessons available                | Chosen by user on 2026-10-04                                                      |
+| Minimal client state; no new training persistence     | Chosen by user; implemented here as current-round-only state                      |
+| Koch progression with G4FON's sequence                | Updated at user's request after checking the Morsy guide and established trainers |
+| Local receiving first, sending second                 | Original requested order                                                          |
+| 20 WPM receiving, 20-prompt rounds, optional autoplay | Manual advancement by default; autoplay uses 750 ms successful feedback           |
+| Custom sets including ÅÄÖ and free replays            | Requested by user on 2026-10-04; implemented without persistence                  |
+| Saved/adaptive progress                               | Removed from current scope                                                        |
 
 The next implementation task is milestone 3: straight-key sending. Use the
 same fixed lesson list and keep all exercise state in memory. Before that

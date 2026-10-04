@@ -7,21 +7,24 @@ import { LocalMorsePlayer, type ListeningSettings } from './LocalMorsePlayer';
 
 interface Prompt {
   character: MorseCodeCharacter;
-  assisted: boolean;
   hint: boolean;
-  heard: boolean;
+  missed: boolean;
 }
 
 interface Score {
   answered: number;
-  unaided: number;
-  assisted: number;
+  correct: number;
+  hinted: number;
 }
 
 type Round =
   | { phase: 'intro' }
-  | { phase: 'playing' | 'answering' | 'paused'; prompt: Prompt; score: Score }
-  | { phase: 'feedback'; prompt: Prompt; score: Score; correct: boolean }
+  | {
+      phase: 'playing' | 'answering' | 'retry' | 'paused';
+      prompt: Prompt;
+      score: Score;
+    }
+  | { phase: 'feedback'; prompt: Prompt; score: Score; paused: boolean }
   | { phase: 'complete'; score: Score };
 
 export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
@@ -34,6 +37,11 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
   const [player] = useState(() => new LocalMorsePlayer());
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const autoPlayEnabled = useRef(false);
+  const transition = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const request = useRef(0);
 
   // Keep event guards synchronous, including multiple inputs in one render.
@@ -43,6 +51,8 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
   }, []);
 
   const cancelAudio = useCallback(() => {
+    clearTimeout(transition.current);
+    transition.current = undefined;
     request.current += 1;
     player.cancel();
   }, [player]);
@@ -51,8 +61,14 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     cancelAudio();
     setPreviewing(null);
     const state = current.current;
-    if (state.phase === 'playing' || state.phase === 'answering') {
+    if (
+      state.phase === 'playing' ||
+      state.phase === 'answering' ||
+      state.phase === 'retry'
+    ) {
       commit({ ...state, phase: 'paused' });
+    } else if (state.phase === 'feedback') {
+      commit({ ...state, paused: true });
     }
   }, [cancelAudio, commit]);
 
@@ -93,7 +109,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
       if (id !== request.current) return;
       commit({
         phase: result === 'complete' ? 'answering' : 'paused',
-        prompt: { ...prompt, heard: prompt.heard || result === 'complete' },
+        prompt,
         score,
       });
     } catch {
@@ -109,9 +125,8 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     void playPrompt(
       {
         character: chooseCharacter(characters),
-        assisted: false,
         hint: false,
-        heard: false,
+        missed: false,
       },
       score,
     );
@@ -122,7 +137,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     const state = current.current;
     if ((state.phase !== 'intro' && state.phase !== 'complete') || !canPlay())
       return;
-    nextPrompt({ answered: 0, unaided: 0, assisted: 0 });
+    nextPrompt({ answered: 0, correct: 0, hinted: 0 });
   }
 
   function next() {
@@ -141,13 +156,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     const state = current.current;
     if ((state.phase !== 'answering' && state.phase !== 'paused') || !canPlay())
       return;
-    void playPrompt(
-      {
-        ...state.prompt,
-        assisted: state.prompt.assisted || state.prompt.heard,
-      },
-      state.score,
-    );
+    void playPrompt(state.prompt, state.score);
   }
 
   function hint() {
@@ -155,8 +164,41 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     if (state.phase !== 'answering') return;
     commit({
       ...state,
-      prompt: { ...state.prompt, hint: true, assisted: true },
+      prompt: { ...state.prompt, hint: true },
     });
+  }
+
+  function advanceAfterFeedback() {
+    clearTimeout(transition.current);
+    transition.current = undefined;
+    if (!autoPlayEnabled.current || current.current.phase !== 'feedback')
+      return;
+    transition.current = setTimeout(() => {
+      transition.current = undefined;
+      const state = current.current;
+      if (
+        state.phase === 'feedback' &&
+        !state.paused &&
+        !document.hidden &&
+        Tone.getContext().state === 'running'
+      )
+        next();
+    }, 750);
+  }
+
+  function changeAutoPlay(value: boolean) {
+    autoPlayEnabled.current = value;
+    setAutoPlay(value);
+    const state = current.current;
+    if (state.phase === 'feedback') {
+      clearTimeout(transition.current);
+      transition.current = undefined;
+      // Enabling this control is an explicit choice to continue.
+      if (value) {
+        commit({ ...state, paused: false });
+        if (!previewing) advanceAfterFeedback();
+      }
+    }
   }
 
   function answer(letter: string) {
@@ -166,19 +208,34 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
       !characters.some(c => c.letter === letter)
     )
       return;
-    const correct = letter === state.prompt.character.letter;
+    if (letter !== state.prompt.character.letter) {
+      const prompt = { ...state.prompt, missed: true };
+      commit({ ...state, phase: 'retry', prompt });
+      // Brief error feedback, then repeat the same sound without revealing it.
+      transition.current = setTimeout(() => {
+        transition.current = undefined;
+        if (current.current.phase !== 'retry') return;
+        if (canPlay() && Tone.getContext().state === 'running')
+          void playPrompt(prompt, state.score);
+        else pause();
+      }, 400);
+      return;
+    }
     commit({
       ...state,
       phase: 'feedback',
-      correct,
+      paused: false,
       score: {
         answered: state.score.answered + 1,
-        unaided:
-          state.score.unaided + Number(correct && !state.prompt.assisted),
-        assisted:
-          state.score.assisted + Number(correct && state.prompt.assisted),
+        correct:
+          state.score.correct +
+          Number(!state.prompt.missed && !state.prompt.hint),
+        hinted:
+          state.score.hinted +
+          Number(!state.prompt.missed && state.prompt.hint),
       },
     });
+    advanceAfterFeedback();
   }
 
   async function preview(character: MorseCodeCharacter) {
@@ -187,9 +244,12 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
       return;
     cancelAudio();
     const id = request.current;
+    if (state.phase === 'feedback') commit({ ...state, paused: false });
     setPreviewing(character.letter);
     try {
-      await player.play(character.code, settings);
+      const result = await player.play(character.code, settings);
+      if (id === request.current && result === 'complete')
+        advanceAfterFeedback();
     } catch {
       if (id === request.current)
         setError('Could not play audio. Please try again.');
@@ -215,6 +275,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     round,
     settings,
     previewing,
+    autoPlay,
     error,
     start,
     next,
@@ -224,6 +285,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     answer,
     preview,
     changeSetting,
+    changeAutoPlay,
     reset,
   };
 }

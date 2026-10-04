@@ -134,17 +134,20 @@ function ListeningPractice({
 }) {
   const session = useListeningRound(characters);
   const { round } = session;
+  const heading = useRef<HTMLHeadingElement>(null);
   const exercise = useRef<HTMLDivElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
   const resumeButton = useRef<HTMLButtonElement>(null);
   const repeatButton = useRef<HTMLButtonElement>(null);
+  const feedbackPaused = round.phase === 'feedback' && round.paused;
 
   useEffect(() => {
+    if (round.phase === 'intro') heading.current?.focus();
     if (round.phase === 'playing') exercise.current?.focus();
     if (round.phase === 'feedback') nextButton.current?.focus();
     if (round.phase === 'paused') resumeButton.current?.focus();
     if (round.phase === 'complete') repeatButton.current?.focus();
-  }, [round.phase]);
+  }, [round.phase, feedbackPaused]);
 
   function onAnswerKey(event: KeyboardEvent) {
     const target = event.target as HTMLElement;
@@ -170,6 +173,7 @@ function ListeningPractice({
   const active =
     round.phase === 'playing' ||
     round.phase === 'answering' ||
+    round.phase === 'retry' ||
     round.phase === 'paused';
   const question =
     'score' in round
@@ -187,8 +191,10 @@ function ListeningPractice({
       </Link>
       <div className="mt-4 flex flex-wrap items-baseline justify-between gap-3">
         <h2
+          ref={heading}
+          tabIndex={-1}
           id="lesson-heading"
-          className="text-3xl font-semibold tracking-tight"
+          className="text-3xl font-semibold tracking-tight outline-none"
         >
           {lesson ? `Lesson ${lesson.id}` : 'Custom practice'}
         </h2>
@@ -196,6 +202,15 @@ function ListeningPractice({
           {characters.length} characters · Listening
         </p>
       </div>
+      <label className="mt-4 inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm text-muted">
+        <input
+          type="checkbox"
+          checked={session.autoPlay}
+          onChange={event => session.changeAutoPlay(event.target.checked)}
+          className="h-5 w-5 accent-accent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+        />
+        Auto-play next sound
+      </label>
       {round.phase === 'intro' ? (
         <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 sm:p-8">
           {lesson ? (
@@ -252,19 +267,18 @@ function ListeningPractice({
         <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 sm:p-8">
           <h3 className="text-lg font-semibold">Round complete</h3>
           <p className="mt-6 text-5xl font-semibold text-accent tabular-nums">
-            {Math.round((round.score.unaided / ROUND_LENGTH) * 100)}%
+            {Math.round((round.score.correct / ROUND_LENGTH) * 100)}%
           </p>
           <p className="mt-2 text-muted">
-            {round.score.unaided} of {ROUND_LENGTH} correct without help
+            {round.score.correct} of {ROUND_LENGTH} correct without hints
           </p>
           <p className="mt-4 text-sm text-muted">
-            {round.score.assisted} correct with help ·{' '}
-            {ROUND_LENGTH - round.score.unaided - round.score.assisted}{' '}
-            incorrect
+            {round.score.hinted} correct with a hint ·{' '}
+            {ROUND_LENGTH - round.score.correct - round.score.hinted} incorrect
           </p>
           <p className="mt-6 max-w-lg leading-relaxed text-muted">
             {lesson
-              ? 'Aim for about 90% without help over several rounds, then try the next lesson. Move on whenever you feel ready.'
+              ? 'Aim for about 90% without hints over several rounds, then try the next lesson. Move on whenever you feel ready.'
               : 'Repeat this set or choose other characters to practise.'}
           </p>
           <Button
@@ -287,7 +301,7 @@ function ListeningPractice({
             <p>
               Sound {question} of {ROUND_LENGTH}
             </p>
-            <p>{round.score.unaided} correct without help</p>
+            <p>{round.score.correct} correct without hints</p>
           </div>
           <div
             className="flex min-h-48 flex-col items-center justify-center py-6 text-center"
@@ -297,19 +311,20 @@ function ListeningPractice({
           >
             {round.phase === 'feedback' ? (
               <>
-                <h3
-                  className={`text-xl font-semibold ${round.correct ? 'text-success' : 'text-warning'}`}
-                >
-                  {round.correct
-                    ? round.prompt.assisted
-                      ? 'Correct, with help.'
-                      : 'Correct!'
-                    : `It was ${round.prompt.character.letter}.`}
+                <h3 className="text-xl font-semibold text-success">
+                  {round.prompt.missed
+                    ? 'Correct on retry.'
+                    : round.prompt.hint
+                      ? 'Correct, with a hint.'
+                      : 'Correct!'}
                 </h3>
                 <span className="mb-3 mt-4 font-mono text-4xl">
                   {round.prompt.character.letter}
                 </span>
                 <Pattern character={round.prompt.character} />
+                {round.paused && (
+                  <p className="mt-3 text-sm text-muted">Paused</p>
+                )}
               </>
             ) : (
               <>
@@ -317,19 +332,25 @@ function ListeningPractice({
                   aria-hidden="true"
                   className="mb-4 text-3xl text-accent"
                 />
-                <h3 className="text-xl font-semibold">
+                <h3
+                  className={`text-xl font-semibold ${round.phase === 'retry' ? 'text-warning' : ''}`}
+                >
                   {round.phase === 'playing'
                     ? 'Listen…'
                     : round.phase === 'paused'
                       ? 'Paused'
-                      : 'What did you hear?'}
+                      : round.phase === 'retry'
+                        ? 'Try again.'
+                        : 'What did you hear?'}
                 </h3>
                 <p className="mt-2 text-sm text-muted">
                   {round.phase === 'playing'
                     ? 'Wait for the whole sound.'
                     : round.phase === 'paused'
                       ? 'Resume to hear this sound from the start.'
-                      : 'Choose a character or type its key.'}
+                      : round.phase === 'retry'
+                        ? 'Listen to the same sound again.'
+                        : 'Choose a character or type its key.'}
                 </p>
                 {round.prompt.hint && (
                   <div className="mt-4 flex items-center gap-4">
@@ -339,9 +360,9 @@ function ListeningPractice({
                     <Pattern character={round.prompt.character} />
                   </div>
                 )}
-                {round.prompt.assisted && (
+                {round.prompt.hint && (
                   <p className="mt-3 text-xs text-muted">
-                    This answer will count as assisted.
+                    Hint shown for this sound.
                   </p>
                 )}
               </>
@@ -367,6 +388,13 @@ function ListeningPractice({
                   <FaVolumeUp aria-hidden="true" />
                   {session.previewing ? 'Playing…' : 'Hear answer'}
                 </Button>
+                {(session.previewing ||
+                  (session.autoPlay && !round.paused)) && (
+                  <Button variant="ghost" onClick={session.pause}>
+                    <FaPause aria-hidden="true" />
+                    Pause
+                  </Button>
+                )}
               </>
             ) : round.phase === 'paused' ? (
               <Button
@@ -402,7 +430,8 @@ function ListeningPractice({
           </div>
           {active && (
             <p className="mt-4 text-xs leading-relaxed text-muted">
-              Replays and hints count as help.
+              First answers count. Replays are free; hints are scored
+              separately.
             </p>
           )}
           <div

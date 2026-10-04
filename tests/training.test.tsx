@@ -43,9 +43,17 @@ async function click(name: string) {
   });
 }
 async function finishSound() {
+  await advance(2_000);
+}
+async function advance(ms: number) {
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(ms);
   });
+}
+function toggleAutoplay() {
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: 'Auto-play next sound' }),
+  );
 }
 
 it('shows all lessons and honours bookmarked, invalid and final lesson URLs without connecting', async () => {
@@ -79,6 +87,7 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
     ).disabled,
   ).toBe(true);
   await click('ÅÄÖ');
+  toggleAutoplay();
   expect(screen.getByText('3 characters selected')).toBeDefined();
   await click('Start practice');
   expect(
@@ -91,6 +100,10 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
   fireEvent.keyDown(screen.getByLabelText('Listening exercise'), { key: 'å' });
   expect(screen.getByText('Correct!')).toBeDefined();
   await click('Change characters');
+  expect(document.activeElement).toBe(
+    screen.getByRole('heading', { name: 'Custom practice' }),
+  );
+  await finishSound();
   expect(screen.getByText('3 characters selected')).toBeDefined();
   await click('Practise K');
   await click('Practise Ä');
@@ -108,6 +121,144 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
   expect(screen.getByText('Choose at least one character.')).toBeDefined();
 });
 
+it('replays an incorrect sound automatically and advances only after a correct retry', async () => {
+  open();
+  toggleAutoplay();
+  await click('Start lesson');
+  await finishSound();
+  await click('Answer M');
+  expect(screen.getByText('Try again.')).toBeDefined();
+  const voices = mocks.oscillators.length;
+  await advance(399);
+  expect(mocks.oscillators).toHaveLength(voices);
+  await advance(1);
+  expect(mocks.oscillators).toHaveLength(voices + 3); // Replays K, not M.
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  await finishSound();
+  await click('Answer K');
+  expect(screen.getByText('Correct on retry.')).toBeDefined();
+  await advance(749);
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  await advance(1);
+  expect(screen.getByText('Sound 2 of 20')).toBeDefined();
+  for (let question = 2; question <= 20; question++) {
+    await finishSound();
+    await click('Answer K');
+    await advance(750);
+  }
+  expect(screen.getByText('Round complete')).toBeDefined();
+  expect(screen.getByText('19 of 20 correct without hints')).toBeDefined();
+  expect(screen.getByText('0 correct with a hint · 1 incorrect')).toBeDefined();
+  const completedVoices = mocks.oscillators.length;
+  await finishSound();
+  expect(mocks.oscillators).toHaveLength(completedVoices);
+});
+
+it('cancels delayed advancement when hidden or paused and does not resume automatically', async () => {
+  open();
+  toggleAutoplay();
+  await click('Start lesson');
+  await finishSound();
+  await click('Answer K');
+  const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+  fireEvent(document, new Event('visibilitychange'));
+  hidden.mockReturnValue(false);
+  fireEvent(document, new Event('visibilitychange'));
+  await finishSound();
+  expect(screen.getByText('Paused')).toBeDefined();
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  await click('Next sound');
+  await finishSound();
+  await click('Answer K');
+  await click('Pause');
+  await finishSound();
+  expect(screen.getByText('Sound 2 of 20')).toBeDefined();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Next sound' }),
+  );
+  expect(screen.getByText('Paused')).toBeDefined();
+  await click('Next sound');
+  await finishSound();
+  await click('Answer M');
+  await click('Pause');
+  const voices = mocks.oscillators.length;
+  await finishSound();
+  expect(mocks.oscillators).toHaveLength(voices);
+  await click('Resume');
+  await finishSound();
+  await click('Answer K');
+  expect(screen.getByText('Correct on retry.')).toBeDefined();
+  expect(screen.getByText('2 correct without hints')).toBeDefined();
+});
+
+it('lets autoplay be disabled and manual Next or navigation cancel pending callbacks', async () => {
+  open();
+  toggleAutoplay();
+  await click('Start lesson');
+  await finishSound();
+  await click('Answer K');
+  toggleAutoplay();
+  await finishSound();
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  toggleAutoplay();
+  await click('Next sound');
+  await finishSound();
+  expect(screen.getByText('Sound 2 of 20')).toBeDefined();
+  await click('Answer K');
+  const voices = mocks.oscillators.length;
+  fireEvent.click(screen.getByRole('link', { name: 'All lessons' }));
+  await finishSound();
+  expect(mocks.oscillators).toHaveLength(voices);
+  expect(screen.getByRole('list', { name: 'Listening lessons' })).toBeDefined();
+});
+
+it('waits for a feedback example to finish before autoplaying the next sound', async () => {
+  open();
+  fireEvent.change(screen.getByLabelText('Character speed'), {
+    target: { value: 10 },
+  });
+  toggleAutoplay();
+  await click('Start lesson');
+  await finishSound();
+  await click('Answer K');
+  await click('Hear answer');
+  await advance(900); // Longer than the usual feedback delay, but K is still playing.
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  expect(screen.getByRole('button', { name: 'Playing…' })).toBeDefined();
+  await advance(400);
+  expect(screen.getByRole('button', { name: 'Hear answer' })).toBeDefined();
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  await advance(750);
+  expect(screen.getByText('Sound 2 of 20')).toBeDefined();
+});
+
+it('cancels automatic retry and advance when the audio context is suspended', async () => {
+  open();
+  toggleAutoplay();
+  await click('Start lesson');
+  await finishSound();
+  await click('Answer M');
+  act(() => {
+    mocks.context.state = 'suspended';
+    mocks.context.on.mock.calls.at(-1)![1]();
+  });
+  const voices = mocks.oscillators.length;
+  await finishSound();
+  expect(mocks.oscillators).toHaveLength(voices);
+  expect(screen.getByText('Paused')).toBeDefined();
+  mocks.context.state = 'running';
+  await click('Resume');
+  await finishSound();
+  await click('Answer K');
+  act(() => {
+    mocks.context.state = 'suspended';
+    mocks.context.on.mock.calls.at(-1)![1]();
+  });
+  await finishSound();
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  expect(screen.getByText('Paused')).toBeDefined();
+});
+
 it('supports a single selected character and clears quick sets without duplicates', async () => {
   open('/training?practice=custom');
   await click('A–Z');
@@ -122,7 +273,7 @@ it('supports a single selected character and clears quick sets without duplicate
   expect(screen.getByText('Correct!')).toBeDefined();
 });
 
-it('scores first answers once, separates assisted success and finishes a 20-sound round', async () => {
+it('scores first answers once, allows free replays and separates visual hints', async () => {
   open();
   await click('Start lesson');
   // Neither button nor keyboard answers may bypass the whole sound.
@@ -135,24 +286,30 @@ it('scores first answers once, separates assisted success and finishes a 20-soun
     fireEvent.keyDown(exercise, { key: 'm' });
     fireEvent.keyDown(exercise, { key: 'k' });
   });
-  expect(screen.getByText('It was K.')).toBeDefined();
+  expect(screen.getByText('Try again.')).toBeDefined();
+  expect(screen.queryByRole('img')).toBeNull();
+  await finishSound();
+  await click('Answer M');
+  await finishSound();
+  await click('Answer K');
+  expect(screen.getByText('Correct on retry.')).toBeDefined();
   expect(document.activeElement).toBe(
     screen.getByRole('button', { name: 'Next sound' }),
   );
   await click('Hear answer');
   await finishSound();
-  expect(screen.getByText('0 correct without help')).toBeDefined();
+  expect(screen.getByText('0 correct without hints')).toBeDefined();
   await click('Next sound');
   await finishSound();
   await click('Replay');
   await finishSound();
   await click('Answer K');
-  expect(screen.getByText('Correct, with help.')).toBeDefined();
+  expect(screen.getByText('Correct!')).toBeDefined();
   await click('Next sound');
   await finishSound();
   await click('Show hint');
   await click('Answer K');
-  expect(screen.getByText('Correct, with help.')).toBeDefined();
+  expect(screen.getByText('Correct, with a hint.')).toBeDefined();
   for (let prompt = 4; prompt <= 20; prompt++) {
     await click('Next sound');
     await finishSound();
@@ -162,13 +319,13 @@ it('scores first answers once, separates assisted success and finishes a 20-soun
     expect(screen.getByText('Correct!')).toBeDefined();
   }
   await click('See results');
-  expect(screen.getByText('85%')).toBeDefined();
-  expect(screen.getByText('17 of 20 correct without help')).toBeDefined();
-  expect(screen.getByText('2 correct with help · 1 incorrect')).toBeDefined();
+  expect(screen.getByText('90%')).toBeDefined();
+  expect(screen.getByText('18 of 20 correct without hints')).toBeDefined();
+  expect(screen.getByText('1 correct with a hint · 1 incorrect')).toBeDefined();
   expect(screen.getByRole('link', { name: 'Next lesson' })).toBeDefined();
   await click('Repeat lesson');
   expect(screen.getByText('Sound 1 of 20')).toBeDefined();
-  expect(screen.getByText('0 correct without help')).toBeDefined();
+  expect(screen.getByText('0 correct without hints')).toBeDefined();
 });
 
 it('pauses hidden or suspended audio and resumes only by choice without penalising interruption', async () => {
@@ -187,7 +344,7 @@ it('pauses hidden or suspended audio and resumes only by choice without penalisi
   await click('Resume');
   await finishSound();
   await click('Answer K');
-  expect(screen.getByText('1 correct without help')).toBeDefined();
+  expect(screen.getByText('1 correct without hints')).toBeDefined();
   await click('Next sound');
   await finishSound();
   act(() => {
@@ -203,9 +360,9 @@ it('pauses hidden or suspended audio and resumes only by choice without penalisi
   await click('Resume');
   await finishSound();
   await click('Answer K');
-  // Re-hearing a fully heard prompt is assistance, even through Pause.
-  expect(screen.getByText('Correct, with help.')).toBeDefined();
-  expect(screen.getByText('1 correct without help')).toBeDefined();
+  // Listening again after Pause is also a free replay.
+  expect(screen.getByText('Correct!')).toBeDefined();
+  expect(screen.getByText('2 correct without hints')).toBeDefined();
 });
 
 it('handles unavailable audio, rapid Start clicks and a pending audio start after navigation', async () => {
@@ -219,7 +376,7 @@ it('handles unavailable audio, rapid Start clicks and a pending audio start afte
   await click('Resume');
   await finishSound();
   await click('Answer K');
-  expect(screen.getByText('1 correct without help')).toBeDefined();
+  expect(screen.getByText('1 correct without hints')).toBeDefined();
   fireEvent.click(screen.getByRole('link', { name: 'Next lesson' }));
   let enableAudio!: () => void;
   mocks.startAudio.mockReturnValueOnce(
@@ -264,7 +421,7 @@ it('keeps settings and scores out of storage, supports blocked storage, and igno
     key: '?',
     shiftKey: true,
   });
-  expect(screen.getByText('It was K.')).toBeDefined();
+  expect(screen.getByText('Try again.')).toBeDefined();
   expect(write).not.toHaveBeenCalled();
   expect(mocks.sendMessage).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('link', { name: 'Next lesson' }));

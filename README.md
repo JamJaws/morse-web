@@ -92,9 +92,14 @@ can be added or removed. The selection stays only for the current visit.
 
 Hear the examples, then start a 20-sound round. Answer with a character button
 or its keyboard key after the sound finishes. Answers are untimed; character
-speed starts at 20 WPM. Replay and Show hint count as help, and round results
-separate unaided answers, assisted answers and mistakes. Every lesson stays
-available regardless of score.
+speed starts at 20 WPM. Replays are free; Show hint is scored separately.
+An incorrect answer automatically replays the same sound for another try. The
+first answer determines the score, so retries cannot turn a mistake into credit.
+
+Enable **Auto-play next sound** to advance after 750 ms of correct-answer
+feedback. Otherwise, select Next sound yourself. Autoplay stops at the round
+results. Pausing, leaving, switching tabs or changing sound settings cancels
+pending playback and advancement until you choose to continue.
 
 Training runs locally without Connect or a backend. Scores and sound-setting
 changes are kept only in memory and cleared when leaving the lesson. The page
