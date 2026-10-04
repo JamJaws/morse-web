@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Tone from 'tone';
 import type { MorseCodeCharacter } from '../beep/MorseCodeCharacter';
 import { readPreferences } from '../settings/preferences';
-import { chooseCharacter, ROUND_LENGTH, type Lesson } from './curriculum';
+import { chooseCharacter, ROUND_LENGTH } from './curriculum';
 import { LocalMorsePlayer, type ListeningSettings } from './LocalMorsePlayer';
 
 interface Prompt {
@@ -24,7 +24,7 @@ type Round =
   | { phase: 'feedback'; prompt: Prompt; score: Score; correct: boolean }
   | { phase: 'complete'; score: Score };
 
-export function useListeningRound(lesson: Lesson) {
+export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
   const [round, setRound] = useState<Round>({ phase: 'intro' });
   const current = useRef(round);
   const [settings, setSettings] = useState<ListeningSettings>(() => ({
@@ -108,7 +108,7 @@ export function useListeningRound(lesson: Lesson) {
   function nextPrompt(score: Score) {
     void playPrompt(
       {
-        character: chooseCharacter(lesson),
+        character: chooseCharacter(characters),
         assisted: false,
         hint: false,
         heard: false,
@@ -118,6 +118,7 @@ export function useListeningRound(lesson: Lesson) {
   }
 
   function start() {
+    if (characters.length === 0) return;
     const state = current.current;
     if ((state.phase !== 'intro' && state.phase !== 'complete') || !canPlay())
       return;
@@ -162,7 +163,7 @@ export function useListeningRound(lesson: Lesson) {
     const state = current.current;
     if (
       state.phase !== 'answering' ||
-      !lesson.characters.some(c => c.letter === letter)
+      !characters.some(c => c.letter === letter)
     )
       return;
     const correct = letter === state.prompt.character.letter;
@@ -203,6 +204,13 @@ export function useListeningRound(lesson: Lesson) {
     setSettings(previous => ({ ...previous, [key]: value }));
   }
 
+  function reset() {
+    cancelAudio();
+    setPreviewing(null);
+    setError(null);
+    commit({ phase: 'intro' });
+  }
+
   return {
     round,
     settings,
@@ -216,5 +224,6 @@ export function useListeningRound(lesson: Lesson) {
     answer,
     preview,
     changeSetting,
+    reset,
   };
 }

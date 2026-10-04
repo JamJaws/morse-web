@@ -51,12 +51,13 @@ async function finishSound() {
 it('shows all lessons and honours bookmarked, invalid and final lesson URLs without connecting', async () => {
   open('/training?lesson=invalid');
   const list = screen.getByRole('list', { name: 'Listening lessons' });
-  expect(within(list).getAllByRole('link')).toHaveLength(40);
-  fireEvent.click(screen.getByRole('link', { name: 'Lesson 40: X' }));
-  expect(screen.getByRole('heading', { name: 'Lesson 40' })).toBeDefined();
+  expect(screen.queryByText('Every lesson is open')).toBeNull();
+  expect(within(list).getAllByRole('link')).toHaveLength(39);
+  fireEvent.click(screen.getByRole('link', { name: 'Lesson 39: X' }));
+  expect(screen.getByRole('heading', { name: 'Lesson 39' })).toBeDefined();
   expect(screen.queryByRole('link', { name: 'Next lesson' })).toBeNull();
   await click('Start lesson');
-  expect(screen.getAllByRole('button', { name: /^Answer / })).toHaveLength(41);
+  expect(screen.getAllByRole('button', { name: /^Answer / })).toHaveLength(40);
   expect(mocks.socketUrl).toBeNull();
   expect(mocks.sendMessage).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('link', { name: 'All lessons' }));
@@ -64,6 +65,61 @@ it('shows all lessons and honours bookmarked, invalid and final lesson URLs with
   expect(
     mocks.oscillators.every(voice => voice.dispose.mock.calls.length === 1),
   ).toBe(true);
+});
+
+it('practises a custom set including ÅÄÖ, with keyboard answers and no saved selection', async () => {
+  const write = vi.spyOn(Storage.prototype, 'setItem');
+  const view = open('/training');
+  fireEvent.click(screen.getByRole('link', { name: /^Custom practice/ }));
+  expect(
+    (
+      screen.getByRole('button', {
+        name: 'Start practice',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  await click('ÅÄÖ');
+  expect(screen.getByText('3 characters selected')).toBeDefined();
+  await click('Start practice');
+  expect(
+    screen
+      .getAllByRole('button', { name: /^Answer / })
+      .map(button => button.textContent),
+  ).toEqual(['Å', 'Ä', 'Ö']);
+  expect(mocks.oscillators).toHaveLength(5); // Å is .--.-
+  await finishSound();
+  fireEvent.keyDown(screen.getByLabelText('Listening exercise'), { key: 'å' });
+  expect(screen.getByText('Correct!')).toBeDefined();
+  await click('Change characters');
+  expect(screen.getByText('3 characters selected')).toBeDefined();
+  await click('Practise K');
+  await click('Practise Ä');
+  await click('Start practice');
+  expect(
+    screen
+      .getAllByRole('button', { name: /^Answer / })
+      .map(button => button.textContent),
+  ).toEqual(['K', 'Å', 'Ö']);
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  expect(write).not.toHaveBeenCalled();
+  expect(mocks.sendMessage).not.toHaveBeenCalled();
+  view.unmount();
+  open('/training?practice=custom');
+  expect(screen.getByText('Choose at least one character.')).toBeDefined();
+});
+
+it('supports a single selected character and clears quick sets without duplicates', async () => {
+  open('/training?practice=custom');
+  await click('A–Z');
+  await click('0–9');
+  expect(screen.getByText('10 characters selected')).toBeDefined();
+  await click('Clear');
+  await click('Practise Ö');
+  await click('Start practice');
+  expect(screen.getAllByRole('button', { name: /^Answer / })).toHaveLength(1);
+  await finishSound();
+  await click('Answer Ö');
+  expect(screen.getByText('Correct!')).toBeDefined();
 });
 
 it('scores first answers once, separates assisted success and finishes a 20-sound round', async () => {

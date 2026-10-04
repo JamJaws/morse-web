@@ -20,7 +20,7 @@ sending/keying practice as a second feature.
   in memory. Training adds no saved progress, completion flags, unlocks,
   resume feature, per-character history or adaptive learning engine.
 - **Koch-based curriculum.** The user delegated the method choice, prioritising
-  established teaching practice and evidence. Use LCWO's documented sequence,
+  established teaching practice and evidence. Use the traditional G4FON sequence,
   starting with K/M and adding one character per lesson.
 - **Learn sounds at 20 WPM character speed.** Keep answers untimed initially;
   add Farnsworth spacing when exercises contain groups or words.
@@ -39,8 +39,9 @@ Sources were checked on 2026-10-04.
 
 ARRL lists Koch-based trainers and describes learning at the target character
 speed, starting with a small set and expanding it after approximately 90%
-accuracy. LCWO provides an established implementation and an explicit character
-sequence. That makes it a sound default for this project. [1][2]
+accuracy. The original implementation used LCWO's established sequence. At the
+user's request, the receiving course now uses the traditional G4FON order,
+matching the linked Morsy guide and Morse Code World's Koch option. [1][8][9]
 
 There is experimental support for learning complete sound patterns: Allan's
 1958 study compared pattern recognition training at 20 WPM with an analytic
@@ -53,33 +54,53 @@ starts with T/E/A/N. Morse Mania starts with E/T and recommends 20 WPM character
 sounds. Both reinforce the sound-pattern principle; they do not establish that
 E/T or K/M is a universally superior starting pair. [4][5][6]
 
-Our choice is therefore **Koch progression using LCWO's sequence**, with
+Our choice is therefore **Koch progression using the traditional G4FON sequence**, with
 Morse Mania's approachable listen/answer/replay interaction as UI inspiration.
 This first single-character, answer-paced exercise is a Koch-based recognition
 trainer, not a complete timed-copy Koch course. Group copying is a later step.
+
+This is a widely used modern Koch ordering, not a claim of one official
+historical order or experimentally proven superiority over LCWO. G4FON says its
+ordering came from Dave Finley's suggested sequence. LICW's comparison lists
+G4FON and LCWO separately and distinguishes both from Koch's 1936 order. [10][11]
 
 ## Curriculum
 
 Use one static sequence as data, independently of the existing Morse map:
 
-K M U R E S N A P T L W I . J Z = F O Y , V G 5 / Q 9 2 H 3 8 B ? 4 7 C 1 D 6 0 X
+K M R S U A P T L O W I . N J E F 0 Y , V G 5 / Q 9 Z H 3 8 B ? 4 2 7 C 1 D 6 X
 
-This is LCWO's default sequence, verified in its source. It contains **41
-characters and produces 40 lessons**, because the first lesson has two
-characters. Digits and five punctuation symbols appear at their sequence
-positions. All 41 already exist in our Morse map. [2]
+This is the traditional G4FON sequence, verified against LICW's comparison.
+It contains **40 characters and produces 39 lessons**, because the first lesson
+has two characters. Digits and four punctuation symbols appear at their
+sequence positions. All 40 already exist in our Morse map. [11]
 
 | Lesson | New character(s)              | Practice pool                             |
 | ------ | ----------------------------- | ----------------------------------------- |
 | 1      | K and M                       | K M                                       |
-| 2      | U                             | K M U                                     |
-| 3      | R                             | K M U R                                   |
-| 4      | E                             | K M U R E                                 |
-| 5      | S                             | K M U R E S                               |
-| 6-40   | One additional character each | Everything introduced through that lesson |
+| 2      | R                             | K M R                                     |
+| 3      | S                             | K M R S                                   |
+| 4      | U                             | K M R S U                                 |
+| 5      | A                             | K M R S U A                               |
+| 6-39   | One additional character each | Everything introduced through that lesson |
 
-Derive each lesson's pool from the sequence. Keep the sequence fixed once lesson
-URLs are published. Do not introduce another curriculum selector initially.
+Derive each lesson's pool from the sequence. This user-requested change replaces
+the LCWO ordering in the draft PR; existing draft lesson numbers now refer to
+G4FON and lesson 40 falls back to the list. Keep this order fixed going forward.
+Do not add a curriculum selector.
+
+### Custom practice
+
+The lesson list also links to `/training?practice=custom`. Select any supported
+letters, digits and punctuation, including **Å Ä Ö**. Quick sets replace the
+selection with A–Z, 0–9 or ÅÄÖ; individual character buttons toggle membership.
+One character is allowed; an empty set cannot start a round. Nordic characters
+remain an optional custom set rather than altering the traditional Koch order.
+
+Custom practice uses the same round and audio player. Repeat keeps the current
+selection; Change characters returns to the picker and clears the round.
+Selection is held only in memory and clears on navigation/reload. No saved
+custom-set library, extra curriculum or progress state is introduced.
 
 ## Lesson list and receiving flow
 
@@ -215,14 +236,14 @@ Use one logical change per Conventional Commit and keep this plan current.
       minimal-state constraint and selected Koch curriculum.
 - [x] **1. Local listening slice.** Add the route, lesson-list structure and K/M
       lesson with local audio, answers, replay and a current-round score.
-- [x] **2. Complete the fixed course.** Populate all 40 lessons from the LCWO
+- [x] **2. Complete the fixed course.** Populate all 39 lessons from the G4FON
       sequence, handle lesson URLs and repeat/next/list navigation, and check
       mobile/keyboard behaviour. Milestones 1 and 2 form the receiving release.
 - [ ] **3. Single-character sending.** Add key-event capture, independent
       decoding, cancellation handling and pattern/timing feedback. Trial touch
       ergonomics and tolerance; keep state limited to the active exercise.
 - [ ] **4. Broader practice, selected later.** Free recall, groups/words/callsigns
-      and Farnsworth spacing; optional custom sets, Nordic letters, paddles or
+      and Farnsworth spacing; optional paddles or
       sandbox. Saved progress and adaptive training are outside the current
       plan and require a future product decision.
 
@@ -237,7 +258,7 @@ Possible commit subjects:
 
 - Open Training directly and from a connected live session. No /beep WebSocket
   or training-data API request should remain/open on Training.
-- Check that the sequence has 41 distinct mapped characters, yields 40 lessons
+- Check that the sequence has 40 distinct mapped characters, yields 39 lessons
   and adds one character per lesson after K/M. Exercise valid/invalid lesson
   URLs and browser navigation.
 - Verify complete-character playback, correct timing, replay cancellation,
@@ -258,7 +279,7 @@ Possible commit subjects:
 
 ## Listening release implementation
 
-- `src/training/curriculum.ts` derives 40 cumulative lessons from the fixed
+- `src/training/curriculum.ts` derives 39 cumulative lessons from the fixed
   sequence and validates bookmarked lesson numbers.
 - `src/training/LocalMorsePlayer.ts` schedules local 600 Hz tones using the
   existing parser and Tone audio clock. Each scheduled mark is disposable;
@@ -267,7 +288,7 @@ Possible commit subjects:
   counters and temporary sound controls. There is no attempt history or
   persistence. A correct answer after replay/hint is counted separately;
   re-hearing an already completed prompt after Pause also counts as assistance.
-- `src/training/TrainingPage.tsx` provides the lesson list, examples, character
+- `src/training/TrainingPage.tsx` provides the lesson list, custom practice, examples, character
   buttons/keyboard input, feedback and round results. Sound settings apply to
   the current lesson and reset when it is left. Only the existing saved volume
   is read; the receiving speed always starts at 20 WPM.
@@ -291,14 +312,14 @@ Verification on 2026-10-04:
 
 ## Decision log and handoff
 
-| Decision                                               | Status                                                            |
-| ------------------------------------------------------ | ----------------------------------------------------------------- |
-| Simple list with all lessons available                 | Chosen by user on 2026-10-04                                      |
-| Minimal client state; no new training persistence      | Chosen by user; implemented here as current-round-only state      |
-| Koch progression with LCWO's sequence                  | Selected under user's delegated choice of an established approach |
-| Local receiving first, sending second                  | Original requested order                                          |
-| 20 WPM receiving, 20-prompt rounds, manual advancement | Implementation defaults; tune from practical trials               |
-| Saved/adaptive progress                                | Removed from current scope                                        |
+| Decision                                               | Status                                                                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| Simple list with all lessons available                 | Chosen by user on 2026-10-04                                                      |
+| Minimal client state; no new training persistence      | Chosen by user; implemented here as current-round-only state                      |
+| Koch progression with G4FON's sequence                 | Updated at user's request after checking the Morsy guide and established trainers |
+| Local receiving first, sending second                  | Original requested order                                                          |
+| 20 WPM receiving, 20-prompt rounds, manual advancement | Implementation defaults; tune from practical trials                               |
+| Saved/adaptive progress                                | Removed from current scope                                                        |
 
 The next implementation task is milestone 3: straight-key sending. Use the
 same fixed lesson list and keep all exercise state in memory. Before that
@@ -316,3 +337,7 @@ and do not treat deferred ideas as approved work.
 5. [Morse Mania developer: overview](https://www.dong.world/2020/05/morse-mania/)
 6. [Morse Mania developer: speed and learning features](https://www.dong.world/2020/05/morse-mania-is-powerful/)
 7. [Morse Mania developer: sending training](https://www.dong.world/2021/08/morse-mania-6/)
+8. [Morsy: Koch method guide](https://learnmorsy.com/learn/koch-method/)
+9. [Morse Code World: character recognition trainer](https://morsecode.world/international/trainer/character.html)
+10. [G4FON: Koch trainer and ordering origin](https://www.g4fon.net/CW%20Trainer.php)
+11. [LICW: comparison of character sequences](https://longislandcwclub.org/wp-content/uploads/2022/11/ANALYSES-OF-OTHER-CHARACTER-SEQUENCES.pdf)

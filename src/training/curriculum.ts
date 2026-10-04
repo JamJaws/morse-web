@@ -1,9 +1,9 @@
 import type { MorseCodeCharacter } from '../beep/MorseCodeCharacter';
 import { morseCodeCharacters } from '../beep/MorseCodeCharacters';
 
-// LCWO's default Koch order. Published lesson URLs depend on this sequence.
+// Traditional G4FON Koch order; see the sources in docs/training-plan.md.
 export const kochSequence =
-  'K M U R E S N A P T L W I . J Z = F O Y , V G 5 / Q 9 2 H 3 8 B ? 4 7 C 1 D 6 0 X'.split(
+  'K M R S U A P T L O W I . N J E F 0 Y , V G 5 / Q 9 Z H 3 8 B ? 4 2 7 C 1 D 6 X'.split(
     ' ',
   );
 
@@ -33,8 +33,8 @@ export function lessonFromParam(value: string | null): Lesson | undefined {
 
 export const ROUND_LENGTH = 20;
 
-export function chooseCharacter(lesson: Lesson): MorseCodeCharacter {
-  return lesson.characters[
-    Math.floor(Math.random() * lesson.characters.length)
-  ];
+export function chooseCharacter(
+  characters: readonly MorseCodeCharacter[],
+): MorseCodeCharacter {
+  return characters[Math.floor(Math.random() * characters.length)];
 }

@@ -1,4 +1,10 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   FaArrowLeft,
@@ -13,6 +19,7 @@ import { SiteHeader } from '../components/SiteHeader';
 import { Button } from '../components/ui/Button';
 import { RangeControl } from '../components/ui/RangeControl';
 import type { MorseCodeCharacter } from '../beep/MorseCodeCharacter';
+import { morseCodeCharacters } from '../beep/MorseCodeCharacters';
 import {
   lessonFromParam,
   lessons,
@@ -20,6 +27,7 @@ import {
   type Lesson,
 } from './curriculum';
 import { useListeningRound } from './useListeningRound';
+import { CharacterPicker } from './CharacterPicker';
 
 const linkStyle =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent';
@@ -60,8 +68,19 @@ function LessonList() {
       <div className="my-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
         <span>20 sounds per round</span>
         <span>No time limit</span>
-        <span>Every lesson is open</span>
       </div>
+      <Link
+        to="?practice=custom"
+        className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-stroke bg-surface p-5 hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+      >
+        <div>
+          <h3 className="font-semibold text-accent">Custom practice</h3>
+          <p className="mt-1 text-sm text-muted">
+            Choose any characters, including Å Ä Ö.
+          </p>
+        </div>
+        <FaArrowRight aria-hidden="true" className="shrink-0 text-accent" />
+      </Link>
       <ol
         aria-label="Listening lessons"
         className="divide-y divide-stroke/60 overflow-hidden rounded-2xl border border-stroke/60 bg-surface"
@@ -98,14 +117,22 @@ function LessonList() {
         ))}
       </ol>
       <p className="mt-5 text-sm leading-relaxed text-muted">
-        Koch progression, using LCWO’s character order.
+        Koch progression, using the traditional G4FON order.
       </p>
     </>
   );
 }
 
-function TrainingLesson({ lesson }: { lesson: Lesson }) {
-  const session = useListeningRound(lesson);
+function ListeningPractice({
+  lesson,
+  characters,
+  picker,
+}: {
+  lesson?: Lesson;
+  characters: readonly MorseCodeCharacter[];
+  picker?: ReactNode;
+}) {
+  const session = useListeningRound(characters);
   const { round } = session;
   const exercise = useRef<HTMLDivElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
@@ -134,7 +161,7 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
     )
       return;
     const letter = event.key.toUpperCase();
-    if (lesson.characters.some(c => c.letter === letter)) {
+    if (characters.some(c => c.letter === letter)) {
       event.preventDefault();
       session.answer(letter);
     }
@@ -163,49 +190,62 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
           id="lesson-heading"
           className="text-3xl font-semibold tracking-tight"
         >
-          Lesson {lesson.id}
+          {lesson ? `Lesson ${lesson.id}` : 'Custom practice'}
         </h2>
         <p className="text-sm text-muted">
-          {lesson.characters.length} characters · Listening
+          {characters.length} characters · Listening
         </p>
       </div>
       {round.phase === 'intro' ? (
         <div className="mt-6 rounded-2xl border border-stroke/60 bg-surface p-5 sm:p-8">
-          <p className="text-sm font-medium text-muted">
-            {lesson.id === 1 ? 'Your first sounds' : 'Meet the new sound'}
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            {lesson.introduced.map(character => (
-              <Button
-                key={character.letter}
-                className="min-w-28 flex-col gap-4 p-5"
-                aria-label={`Hear ${character.letter}`}
-                onClick={() => void session.preview(character)}
-              >
-                <span className="font-mono text-4xl">{character.letter}</span>
-                <Pattern character={character} />
-                <span className="flex items-center gap-2 text-xs text-muted">
-                  <FaVolumeUp aria-hidden="true" />
-                  {session.previewing === character.letter
-                    ? 'Playing…'
-                    : 'Hear sound'}
+          {lesson ? (
+            <>
+              <p className="text-sm font-medium text-muted">
+                {lesson.id === 1 ? 'Your first sounds' : 'Meet the new sound'}
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {lesson.introduced.map(character => (
+                  <Button
+                    key={character.letter}
+                    className="min-w-28 flex-col gap-4 p-5"
+                    aria-label={`Hear ${character.letter}`}
+                    onClick={() => void session.preview(character)}
+                  >
+                    <span className="font-mono text-4xl">
+                      {character.letter}
+                    </span>
+                    <Pattern character={character} />
+                    <span className="flex items-center gap-2 text-xs text-muted">
+                      <FaVolumeUp aria-hidden="true" />
+                      {session.previewing === character.letter
+                        ? 'Playing…'
+                        : 'Hear sound'}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-6 max-w-lg leading-relaxed text-muted">
+                Listen for the whole rhythm. Then answer with a character button
+                or your keyboard. Take as long as you need.
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-muted">
+                This lesson:{' '}
+                <span className="font-mono text-ink">
+                  {characters.map(c => c.letter).join(' ')}
                 </span>
-              </Button>
-            ))}
-          </div>
-          <p className="mt-6 max-w-lg leading-relaxed text-muted">
-            Listen for the whole rhythm. Then answer with a character button or
-            your keyboard. Take as long as you need.
-          </p>
-          <p className="mt-4 text-sm leading-relaxed text-muted">
-            This lesson:{' '}
-            <span className="font-mono text-ink">
-              {lesson.characters.map(c => c.letter).join(' ')}
-            </span>
-          </p>
-          <Button variant="primary" className="mt-6" onClick={session.start}>
+              </p>
+            </>
+          ) : (
+            picker
+          )}
+          <Button
+            variant="primary"
+            className="mt-6"
+            onClick={session.start}
+            disabled={characters.length === 0}
+          >
             <FaPlay aria-hidden="true" />
-            Start lesson
+            {lesson ? 'Start lesson' : 'Start practice'}
           </Button>
         </div>
       ) : round.phase === 'complete' ? (
@@ -223,8 +263,9 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
             incorrect
           </p>
           <p className="mt-6 max-w-lg leading-relaxed text-muted">
-            Aim for about 90% without help over several rounds, then try the
-            next lesson. Move on whenever you feel ready.
+            {lesson
+              ? 'Aim for about 90% without help over several rounds, then try the next lesson. Move on whenever you feel ready.'
+              : 'Repeat this set or choose other characters to practise.'}
           </p>
           <Button
             ref={repeatButton}
@@ -232,7 +273,7 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
             className="mt-6"
             onClick={session.start}
           >
-            Repeat lesson
+            {lesson ? 'Repeat lesson' : 'Repeat practice'}
           </Button>
         </div>
       ) : (
@@ -369,7 +410,7 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
             role="group"
             className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-2"
           >
-            {lesson.characters.map(character => (
+            {characters.map(character => (
               <Button
                 key={character.letter}
                 className="min-h-12 px-2 font-mono text-xl"
@@ -420,23 +461,37 @@ function TrainingLesson({ lesson }: { lesson: Lesson }) {
             spokenUnit="percent"
             onChange={value => session.changeSetting('volume', value)}
           />
-          <p className="text-xs text-muted">
-            Applies to this lesson. Changes pause playback.
-          </p>
+          <p className="text-xs text-muted">Changes pause playback.</p>
         </div>
       </details>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted">
-          Leaving this lesson clears the round.
-        </p>
-        {lesson.id < lessons.length && (
+        <p className="text-xs text-muted">Leaving practice clears the round.</p>
+        {lesson && lesson.id < lessons.length && (
           <Link className={linkStyle} to={`?lesson=${lesson.id + 1}`}>
             Next lesson
             <FaArrowRight aria-hidden="true" />
           </Link>
         )}
+        {!lesson && round.phase !== 'intro' && (
+          <Button variant="ghost" onClick={session.reset}>
+            Change characters
+          </Button>
+        )}
       </div>
     </section>
+  );
+}
+
+function CustomPractice() {
+  const [selected, setSelected] = useState('');
+  const characters = morseCodeCharacters.filter(character =>
+    selected.includes(character.letter),
+  );
+  return (
+    <ListeningPractice
+      characters={characters}
+      picker={<CharacterPicker value={selected} onChange={setSelected} />}
+    />
   );
 }
 
@@ -447,8 +502,14 @@ export default function TrainingPage() {
     <div className="flex min-h-dvh flex-col bg-canvas text-ink">
       <SiteHeader />
       <main className="mx-auto w-full max-w-3xl grow px-4 py-8 sm:px-6 sm:py-12">
-        {lesson ? (
-          <TrainingLesson key={lesson.id} lesson={lesson} />
+        {params.get('practice') === 'custom' ? (
+          <CustomPractice />
+        ) : lesson ? (
+          <ListeningPractice
+            key={lesson.id}
+            lesson={lesson}
+            characters={lesson.characters}
+          />
         ) : (
           <LessonList />
         )}

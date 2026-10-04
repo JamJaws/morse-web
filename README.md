@@ -82,9 +82,13 @@ statistics are not sampled otherwise.
 
 ## Listening training
 
-Open **Training** in the header, or visit `/training`. All 40 Koch lessons are
-available, starting with K/M and adding characters in LCWO's order. A lesson
+Open **Training** in the header, or visit `/training`. All 39 Koch lessons are
+available, starting with K/M and adding characters in the traditional G4FON order. A lesson
 can be bookmarked, for example `/training?lesson=3`.
+
+**Custom practice** lets you choose any mapped letters, digits or punctuation,
+including Å, Ä and Ö. Quick sets select A–Z, 0–9 or ÅÄÖ; individual characters
+can be added or removed. The selection stays only for the current visit.
 
 Hear the examples, then start a 20-sound round. Answer with a character button
 or its keyboard key after the sound finishes. Answers are untimed; character
