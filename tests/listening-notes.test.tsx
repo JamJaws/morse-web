@@ -118,6 +118,64 @@ it('keeps notes editable during a session when browser storage is blocked or ful
   expect(sentCommands()).toEqual([]);
 });
 
+it.each([
+  { storage: 'blocked', expanded: true },
+  { storage: 'blocked', expanded: false },
+  { storage: 'full', expanded: true },
+  { storage: 'full', expanded: false },
+])(
+  'preserves notes through audio suspension with $storage storage and expanded=$expanded',
+  async ({ storage, expanded }) => {
+    localStorage.setItem(
+      NOTES_KEY,
+      JSON.stringify({ text: 'Old saved notes', expanded: false }),
+    );
+    if (storage === 'blocked') {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new DOMException('Blocked', 'SecurityError');
+      });
+    }
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full', 'QuotaExceededError');
+    });
+    await openApp();
+    toggleNotes();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Listening notes' }), {
+      target: { value: 'Current notes\nCQ TEST' },
+    });
+    if (!expanded) toggleNotes();
+
+    act(() => {
+      mocks.context.state = 'suspended';
+      mocks.context.on.mock.calls[0][1]();
+    });
+    expect(screen.queryByRole('button', { name: 'Notes' })).toBeNull();
+    expect(
+      screen.queryByRole('textbox', { name: 'Listening notes' }),
+    ).toBeNull();
+    expect(mocks.socketUrl).toBeNull();
+
+    mocks.context.state = 'running';
+    await act(async () =>
+      fireEvent.click(screen.getByRole('button', { name: 'Connect' })),
+    );
+    expect(
+      screen
+        .getByRole('button', { name: 'Notes' })
+        .getAttribute('aria-expanded'),
+    ).toBe(String(expanded));
+    if (!expanded) toggleNotes();
+    expect(
+      (
+        screen.getByRole('textbox', {
+          name: 'Listening notes',
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe('Current notes\nCQ TEST');
+    expect(sentCommands()).toEqual([]);
+  },
+);
+
 it.each(['invalid JSON', 'null', '[]', '{"text":42,"expanded":"yes"}'])(
   'recovers safely from malformed saved notes: %s',
   async stored => {

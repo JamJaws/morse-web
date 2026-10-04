@@ -90,6 +90,58 @@ it('opens typed sending from more actions and retains drafts across panels and d
   expect((screen.getByLabelText('Message') as HTMLInputElement).value).toBe('');
 });
 
+it('preserves an unsent message and expanded panels through audio suspension and reconnect', async () => {
+  openApp();
+  expect(screen.queryByRole('button', { name: 'Morse reference' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Operators,/ })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Message' })).toBeNull();
+  await join();
+  fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Transmit text' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), {
+    target: { value: 'CQ UNSENT' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /^Operators,/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Morse reference' }));
+  fireEvent.click(screen.getByText('Punctuation'));
+  expect(screen.getByText('Punctuation').closest('details')!.open).toBe(true);
+
+  act(() => {
+    mocks.context.state = 'suspended';
+    mocks.context.on.mock.calls[0][1]();
+  });
+  expect(screen.queryByRole('button', { name: 'Morse reference' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /^Operators,/ })).toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Message' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Morse key' })).toBeNull();
+  expect(mocks.socketUrl).toBeNull();
+
+  mocks.context.state = 'running';
+  await join();
+  expect(
+    (screen.getByRole('textbox', { name: 'Message' }) as HTMLInputElement)
+      .value,
+  ).toBe('CQ UNSENT');
+  expect(
+    screen
+      .getByRole('button', { name: /^Operators,/ })
+      .getAttribute('aria-expanded'),
+  ).toBe('true');
+  expect(
+    screen
+      .getByRole('button', { name: 'Morse reference' })
+      .getAttribute('aria-expanded'),
+  ).toBe('true');
+  expect(screen.getByText('Punctuation').closest('details')!.open).toBe(true);
+  expect(sentCommands()).toEqual([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(sentCommands()).toEqual(['CODE']);
+  expect(
+    (screen.getByRole('textbox', { name: 'Message' }) as HTMLInputElement)
+      .value,
+  ).toBe('');
+});
+
 it('mutes local and current/new remote voices without losing the volume setting', async () => {
   openApp();
   await join();
