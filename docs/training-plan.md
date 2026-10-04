@@ -1,6 +1,7 @@
 # Client-only Morse training
 
-Status: planning decisions recorded; implementation has not started.
+Status: listening release implemented (milestones 1 and 2). Sending remains the
+next feature.
 
 Created and updated: 2026-10-04. Repository baseline: main at 17b5347,
 including the reference sidebar and listening notes from PR #167.
@@ -25,8 +26,8 @@ sending/keying practice as a second feature.
   add Farnsworth spacing when exercises contain groups or words.
 - **Entirely local.** Generate tones and assess answers in the browser, without
   a callsign, account, WebSocket, backend grading or uploaded results.
-- **Planning scope.** This commit updates the plan; it does not implement the
-  page. The lesson-list/state choices are settled and need no reconfirmation.
+- **Delivery scope.** The first release implements listening recognition. The
+  lesson-list/state choices are settled and need no reconfirmation.
 
 Client-only execution does not guarantee an offline page reload. The first
 version works without the backend after the required page assets have loaded.
@@ -212,9 +213,9 @@ Use one logical change per Conventional Commit and keep this plan current.
 
 - [x] **0. Research and decisions.** Record the simple lesson-list requirement,
       minimal-state constraint and selected Koch curriculum.
-- [ ] **1. Local listening slice.** Add the route, lesson-list structure and K/M
+- [x] **1. Local listening slice.** Add the route, lesson-list structure and K/M
       lesson with local audio, answers, replay and a current-round score.
-- [ ] **2. Complete the fixed course.** Populate all 40 lessons from the LCWO
+- [x] **2. Complete the fixed course.** Populate all 40 lessons from the LCWO
       sequence, handle lesson URLs and repeat/next/list navigation, and check
       mobile/keyboard behaviour. Milestones 1 and 2 form the receiving release.
 - [ ] **3. Single-character sending.** Add key-event capture, independent
@@ -253,7 +254,40 @@ Possible commit subjects:
   answer through an accessible label before feedback.
 - Recheck live keying, reference preview, notes and connection cleanup after
   shared-code changes. Use existing tests, type checking, formatting, lint and
-  build for implementation PRs; this plan-only change needs document checks.
+  build for implementation PRs.
+
+## Listening release implementation
+
+- `src/training/curriculum.ts` derives 40 cumulative lessons from the fixed
+  sequence and validates bookmarked lesson numbers.
+- `src/training/LocalMorsePlayer.ts` schedules local 600 Hz tones using the
+  existing parser and Tone audio clock. Each scheduled mark is disposable;
+  cancellation also guards delayed audio activation and completion callbacks.
+- `src/training/useListeningRound.ts` holds only the current prompt, round
+  counters and temporary sound controls. There is no attempt history or
+  persistence. A correct answer after replay/hint is counted separately;
+  re-hearing an already completed prompt after Pause also counts as assistance.
+- `src/training/TrainingPage.tsx` provides the lesson list, examples, character
+  buttons/keyboard input, feedback and round results. Sound settings apply to
+  the current lesson and reset when it is left. Only the existing saved volume
+  is read; the receiving speed always starts at 20 WPM.
+- `src/routes.tsx` keeps Training and Live as sibling routes. The shared header
+  is presentation only, so live connections and tones are cleaned up on exit.
+
+Verification on 2026-10-04:
+
+- All **206 Vitest tests** pass, including 13 new tests for curriculum,
+  scheduling/cancellation, scoring, navigation, blocked storage, keyboard
+  input and live-session cleanup.
+- Type checking, ESLint, Prettier and the production build pass. Vite retains
+  its bundle-size warning; no runtime dependencies were added.
+- A Chromium smoke check against the production build passed desktop and
+  320/375 px layouts, native Web Audio completion, keyboard input/focus,
+  replay scoring, all 41 answer choices, reload reset and return to Live.
+  Training produced no storage writes, API requests or WebSocket connections.
+- Physical-device audio, iOS/Safari and screen-reader listening still need
+  practical trials. Headless playback checks validate scheduling and browser
+  behaviour, not perceived sound quality or learning effectiveness.
 
 ## Decision log and handoff
 
@@ -266,11 +300,12 @@ Possible commit subjects:
 | 20 WPM receiving, 20-prompt rounds, manual advancement | Implementation defaults; tune from practical trials               |
 | Saved/adaptive progress                                | Removed from current scope                                        |
 
-The next implementation task is milestone 1. No further choice between a
-lesson list and Continue flow, or between E/T and Koch curricula, is needed.
-Before coding, compare the branch with current main and check for new repository
-instructions. Preserve linear history and do not treat deferred ideas as
-approved work.
+The next implementation task is milestone 3: straight-key sending. Use the
+same fixed lesson list and keep all exercise state in memory. Before that
+slice, distinguish normal release from cancellation in `useMorseKey` and
+trial the proposed timing tolerance on touch input. Compare the branch with
+current main and check for new repository instructions. Preserve linear history
+and do not treat deferred ideas as approved work.
 
 ## Sources
 

@@ -79,3 +79,24 @@ The header's **More actions** (⋯) menu contains
 switching panels or reconnecting. The `?tx`
 URL shortcut opens that panel initially. `?debug` enables playback diagnostics;
 statistics are not sampled otherwise.
+
+## Listening training
+
+Open **Training** in the header, or visit `/training`. All 40 Koch lessons are
+available, starting with K/M and adding characters in LCWO's order. A lesson
+can be bookmarked, for example `/training?lesson=3`.
+
+Hear the examples, then start a 20-sound round. Answer with a character button
+or its keyboard key after the sound finishes. Answers are untimed; character
+speed starts at 20 WPM. Replay and Show hint count as help, and round results
+separate unaided answers, assisted answers and mistakes. Every lesson stays
+available regardless of score.
+
+Training runs locally without Connect or a backend. Scores and sound-setting
+changes are kept only in memory and cleared when leaving the lesson. The page
+reads the saved live volume but does not change live preferences. Switching
+tabs or pausing stops playback; Resume must be selected to hear it again.
+
+Leaving Live for Training disconnects the live session and stops its tones.
+Returning to Live requires Connect. Offline page reloads and sending practice
+are not included yet. See [the training roadmap](docs/training-plan.md).
