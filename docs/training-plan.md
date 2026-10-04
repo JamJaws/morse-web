@@ -1,323 +1,283 @@
 # Client-only Morse training
 
-Status: discussion draft; implementation has not started.
+Status: planning decisions recorded; implementation has not started.
 
-Created: 2026-10-04. Repository baseline: `main` at `17b5347`, including
-the reference sidebar and listening notes from PR #167.
+Created and updated: 2026-10-04. Repository baseline: main at 17b5347,
+including the reference sidebar and listening notes from PR #167.
 
-This document is the continuing plan for the feature. Update the decisions,
-milestone checkboxes and handoff notes as work progresses. Recommendations below
-are proposals, not decisions already approved by the user.
+Keep this document current as implementation progresses. The decisions below
+supersede the original proposal for an E/T course with saved adaptive progress.
 
-## Goal and agreed scope
+## Goal and decisions
 
-Add a separate Training page to Morse. Start with listening: hear a character,
-identify it, practise it, and gradually learn more characters. Add sending/keying
-practice as a second feature after the receiving experience works well.
+Add a separate Training page. First teach listening recognition, then add
+sending/keying practice as a second feature.
 
-- Training runs entirely in the browser. No account, callsign, server session,
-  WebSocket, backend grading or uploaded progress is needed.
-- Generate sounds locally and save settings/progress on the current device.
-- Preserve the site's clean visual design and its focus on manually keyed live
-  Morse. Training should be discoverable before connecting to the live channel.
-- This change is a plan only. Discuss the choices before implementing the UI.
+- **A plain list of lessons.** Every lesson is available immediately. The user
+  chooses which lesson to practise and when to move on.
+- **Minimal client state.** Keep only the active exercise and its round score
+  in memory. Training adds no saved progress, completion flags, unlocks,
+  resume feature, per-character history or adaptive learning engine.
+- **Koch-based curriculum.** The user delegated the method choice, prioritising
+  established teaching practice and evidence. Use LCWO's documented sequence,
+  starting with K/M and adding one character per lesson.
+- **Learn sounds at 20 WPM character speed.** Keep answers untimed initially;
+  add Farnsworth spacing when exercises contain groups or words.
+- **Entirely local.** Generate tones and assess answers in the browser, without
+  a callsign, account, WebSocket, backend grading or uploaded results.
+- **Planning scope.** This commit updates the plan; it does not implement the
+  page. The lesson-list/state choices are settled and need no reconfirmation.
 
-Client-only execution does not by itself guarantee an offline page reload.
-The first version should work without the backend and keep working after the
-page's assets have loaded. Installable/offline-reload support would require a
-separate caching/service-worker feature and is deferred.
+Client-only execution does not guarantee an offline page reload. The first
+version works without the backend after the required page assets have loaded.
+Offline reload/install support is a separate, deferred feature.
 
-## Research and what to borrow
+## Why this teaching approach
 
-Sources were checked on 2026-10-04. Developer articles describe earlier versions;
-the current store listing is the source for the app's present advertised scope.
+Sources were checked on 2026-10-04.
 
-- Morse Mania starts receiving and sending with **E and T**, then introduces
-  more complex letters, followed by numbers and other symbols. Its current
-  listing also includes words, callsigns and phrases, separate receiving and
-  sending lessons, custom practice and offline operation. [1][2]
-- Its developer recommends a default **20 WPM character speed**, learning the
-  overall sound of a character. Farnsworth timing slows the spaces between
-  characters/words while preserving the sounds within each character. [3]
-- Morse Mania's sending mode presents a target and measures presses on a key.
-  It offers pattern/audio hints, compares the expected and entered patterns,
-  and has adjustable timing tolerance. The 2021 article describes a slower
-  sending default than receiving. [4]
-- ARRL recommends learning characters by sound and describes both progressive
-  Koch training and Farnsworth timing. G4FON's trainer distinguishes character
-  speed from effective speed. These are compatible ideas: character order,
-  progression and spacing are separate design choices. [5][6]
+ARRL lists Koch-based trainers and describes learning at the target character
+speed, starting with a small set and expanding it after approximately 90%
+accuracy. LCWO provides an established implementation and an explicit character
+sequence. That makes it a sound default for this project. [1][2]
 
-Borrow the short feedback loop, gradual introduction, replay/hints and focused
-review. Design our own presentation and lesson rules. The sources verify E/T as
-Morse Mania's starting pair; they do not establish its complete current lesson
-order. The curriculum proposed below is ours, not a claimed copy of that order.
+There is experimental support for learning complete sound patterns: Allan's
+1958 study compared pattern recognition training at 20 WPM with an analytic
+approach and reported better alphabet knowledge and earlier attainment of high
+speeds. This is older evidence, and the publisher abstract does not establish
+that LCWO's exact letter order beats other modern sound-based courses. [3]
 
-## Learning options
+CW Academy also teaches fast character recognition with extra spacing, but
+starts with T/E/A/N. Morse Mania starts with E/T and recommends 20 WPM character
+sounds. Both reinforce the sound-pattern principle; they do not establish that
+E/T or K/M is a universally superior starting pair. [4][5][6]
 
-| Option            | Starting experience                                                                                     | Tradeoff                                                                           | Recommendation                             |
-| ----------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------ |
-| Beginner course   | E/T, then introduce short patterns gradually                                                            | Easy first success; must still teach complete sounds rather than counting marks    | Default for the first release              |
-| Koch-style course | Two contrasting characters, for example K/M, played at target character speed; gradually expand the set | Introduces more substantial rhythms immediately, but has a less obvious first step | Keep possible as a later curriculum preset |
-| Custom practice   | Choose any supported characters                                                                         | Useful for experienced users and trouble spots, but provides little guidance       | Follow the guided course                   |
+Our choice is therefore **Koch progression using LCWO's sequence**, with
+Morse Mania's approachable listen/answer/replay interaction as UI inspiration.
+This first single-character, answer-paced exercise is a Koch-based recognition
+trainer, not a complete timed-copy Koch course. Group copying is a later step.
 
-There is no claim here that one character order is universally best. Keep the
-curriculum as data so we can revise it without rewriting playback or scoring.
-Avoid presenting newcomers with several competing learning methods on day one.
+## Curriculum
 
-### Proposed beginner order
+Use one static sequence as data, independently of the existing Morse map:
 
-Introduce E/T together; thereafter introduce one new character per lesson.
-The rows below group related stages, not simultaneous unlocks.
+K M U R E S N A P T L W I . J Z = F O Y , V G 5 / Q 9 2 H 3 8 B ? 4 7 C 1 D 6 0 X
 
-| Stage                           | New characters                                       | Purpose                                   |
-| ------------------------------- | ---------------------------------------------------- | ----------------------------------------- |
-| First lesson                    | E `.` and T `-`                                      | Hear and distinguish a dit and a dah      |
-| Next                            | A `.-`, then N `-.`                                  | Recognise the order of two sounds         |
-| Next                            | I `..`, then M `--`                                  | Add the remaining two-element letters     |
-| Next                            | S `...`, then O `---`                                | Add longer rhythms                        |
-| Remaining alphabet, provisional | R, K, D, U, G, W, H, B, V, F, L, P, J, C, Y, Q, X, Z | Complete A-Z with cumulative review       |
-| Later                           | Digits, selected punctuation, Å/Ä/Ö                  | Expand beyond the initial alphabet course |
+This is LCWO's default sequence, verified in its source. It contains **41
+characters and produces 40 lessons**, because the first lesson has two
+characters. Digits and five punctuation symbols appear at their sequence
+positions. All 41 already exist in our Morse map. [2]
 
-The full proposed alphabet order is
-`E T A N I M S O R K D U G W H B V F L P J C Y Q X Z`.
-Validate that every curriculum item has an entry in the existing Morse map.
-Revisit the later order after trying the first few lessons; do not derive lessons
-from the alphabetically sorted reference table.
+| Lesson | New character(s)              | Practice pool                             |
+| ------ | ----------------------------- | ----------------------------------------- |
+| 1      | K and M                       | K M                                       |
+| 2      | U                             | K M U                                     |
+| 3      | R                             | K M U R                                   |
+| 4      | E                             | K M U R E                                 |
+| 5      | S                             | K M U R E S                               |
+| 6-40   | One additional character each | Everything introduced through that lesson |
 
-## Receiving experience
+Derive each lesson's pool from the sequence. Keep the sequence fixed once lesson
+URLs are published. Do not introduce another curriculum selector initially.
 
-Use a visible **Live / Training** navigation choice. Live remains at `/`;
-Training uses `/training`. Within Training, start with **Listen** and introduce
-**Send** when it is implemented. Use the existing colours, controls and footer,
-with a centred practice area and a compact progress/lesson picker.
+## Lesson list and receiving flow
 
-1. Open Training and choose **Start lesson** or **Continue**. This user action
-   enables audio; it never connects to the live channel.
-2. Introduce a new character with its letter, a local audio example and an
-   optional dot/dash explanation. Keep this teaching step separate from scoring.
-3. Play one random character. Answer by tapping a labelled character tile or
-   pressing the corresponding physical keyboard key. Initially the available
-   choices are E and T; the answer set grows with the learned characters.
-4. Give brief, quiet feedback. On an error, show the correct letter and offer
-   replay. Keep dot/dash patterns behind a hint or in the correction view so
-   normal practice depends on hearing the character.
-5. Finish a short round, show first-attempt accuracy and characters to review,
-   and offer **Practise again** or **Learn next character**.
+Use visible **Live / Training** navigation. Live remains at / and Training uses
+/training. Show a simple numbered lesson list, each row identifying the new
+character and the characters practised. Use the existing theme and footer.
 
-Proposed defaults and behaviour:
+The selected lesson can live in the URL, for example /training?lesson=3, so it
+can be bookmarked without stored progress. Validate the parameter against the
+static lessons; an invalid value falls back to the lesson list. Returning to
+/training always shows the list.
 
-- **20 WPM character speed**, adjustable, with no answer deadline. Play the
-  complete character before accepting a scored answer so users do not learn to
-  guess from a prefix. Do not advertise a quiz round as 20 effective WPM: the
-  response pauses are deliberately variable.
-- Use a stable, labelled answer grid and physical keyboard support. Optional
-  position shuffling can come later; do not move buttons underneath a finger or
-  change the focused control after every answer.
-- **20 prompts per round**, with replay, hint, pause and exit always available.
-  No lives, countdown or streak penalties in the initial course.
-- Record a prompt once. Retry success must not overwrite a wrong first answer.
-  A hint/replay-assisted answer is useful practice but not an unaided success.
-  Interrupted audio and cancelled prompts do not count as mistakes.
-- Give the new character enough exposure while continuing to practise older
-  ones. Allow random repetitions, including with only two characters; never
-  force alternation that makes the answer predictable.
-- Proposed progression rule: suggest the next character after at least **90%
-  unaided first-attempt accuracy over the last 40 prompts at the current stage**,
-  including at least **10 exposures to the newest character at 90% accuracy**.
-  Keep this a tunable product rule, not a claim about Morse Mania or a validated
-  measure of fluency. Users can repeat or manually choose lessons regardless.
-- Keep practice results and mastery separate. Recognising one of two visible
-  choices is an early learning step, not proof of fluent reception. Later add
-  recall without answer choices, short groups and actual words.
-- Save after each completed prompt/setting change, but resume on a paused lesson
-  screen after a reload. Never resume a tone or submit an answer automatically.
+1. Select a lesson. Show its new character(s), local sound examples and a
+   **Start** button. Start enables audio without joining the live channel.
+2. Play one random character from that lesson's cumulative pool.
+3. Answer using labelled character buttons or the corresponding keyboard key.
+   Accept scored input only after the complete character has played.
+4. Give brief feedback. On an error, show the correct character and offer
+   replay. Put the dot/dash pattern in the introduction, hint or correction;
+   normal answers should depend on listening.
+5. End the round with a simple score and **Repeat**, **Next lesson** and
+   **All lessons** actions. Next lesson is available regardless of score and
+   is omitted at the end of the course.
 
-Farnsworth/effective speed becomes a meaningful setting for multi-character
-groups and words. It is unnecessary as a second speed slider in the initial
-single-character, answer-paced quiz. When introduced, stretch inter-character
-and word gaps, not the elements or spaces inside a character.
+Defaults and scoring:
 
-## Sending experience, second feature
+- Use **20 WPM character speed** and no answer deadline. This is not a claim
+  of 20 effective WPM: the pauses depend on how long the user takes to answer.
+- Use **20 prompts per round**. Offer replay, hint, pause and exit. Keep answer
+  buttons stable while practising and support physical keyboard input.
+- Choose uniformly from the lesson pool. Natural repeats are allowed, including
+  in the two-character first lesson. No adaptive weighting or remembered
+  weaknesses; a short round need not cover every character in later lessons.
+- Count each prompt once. A wrong first answer stays wrong; hint/replay-assisted
+  success is recorded separately from unaided success. Interrupted playback
+  and cancelled prompts do not count as mistakes.
+- Keep a few current-round counters and the current prompt, not a saved history
+  of attempts. At the end, show unaided accuracy and any assisted-answer count.
+- Give lightweight guidance to repeat until the user regularly reaches about
+  **90% accuracy**. This is guidance, not a gate, saved mastery score or claim
+  that success in a multiple-choice round proves fluent Morse reception.
+- Allow ordinary playback controls such as volume and speed, using in-memory
+  values for the current visit. No new persisted training preferences.
+- Leaving the training page or refreshing discards the round. Pause/audio
+  suspension may retain the current round while the page is mounted, but never
+  resume sound automatically.
 
-Start with **prompted straight-key practice**. Show a letter such as A, then
-let the learner hold/release the familiar key using touch, mouse or focused
-Space/Enter. Play local sidetone and capture the press/release durations.
-No microphone, audio recognition or physical radio hardware is needed.
+Farnsworth spacing preserves normal element timing and stretches the spaces
+between characters/words. A second speed slider adds little to an answer-paced
+single-character exercise. Add it with group/word practice; retain the existing
+parser's default behaviour for live playback.
 
-After a finishing pause, show what was entered, the expected pattern and one
-useful correction. For example: "Correct A. Make the dash a little longer."
-Provide **Hear example**, **Show pattern** and **Try again**. Hint-assisted
-attempts remain practice and are tracked separately from unaided recall.
+## Sending, the second feature
 
-| Sending option           | What it teaches                                          | Scope                                                                       |
-| ------------------------ | -------------------------------------------------------- | --------------------------------------------------------------------------- |
-| One held key             | Pattern recall and the duration/spacing of manual keying | Recommended first implementation                                            |
-| Separate dit/dah buttons | Pattern recall with automatic mark lengths               | Possible accessible/assisted alternative; does not grade manual mark timing |
-| Iambic paddles           | Electronic-keyer operation and rhythm                    | Later specialist feature                                                    |
-| Free keying sandbox      | Exploration and playback of anything entered             | Useful follow-up, after decoding works reliably                             |
+Start with prompted **straight-key practice**, using the same lesson list and
+cumulative character pools. Show a character, let the learner hold/release the
+familiar key, then compare their attempt with the target.
 
-### Recognition and feedback rules
+Touch, mouse and focused Space/Enter produce local sidetone. Capture input
+timings directly; no microphone or audio recognition is needed. Offer
+**Hear example**, **Show pattern** and **Try again**. Keep results within the
+current round, with the same absence of persisted training state.
 
-- Receiving and sending keep separate settings and progress. A provisional
-  **10 WPM sending target** makes physical input gentler while receiving stays
-  at 20 WPM. This needs touch-device trials before it becomes the default.
-- Use the selected sending speed as the initial reference: a dit is one unit,
-  a dah three, and an intra-character gap one. Do not infer speed from a lone
-  press: without a reference, a long E and a short T are ambiguous.
-- Capture monotonic input timestamps and classify the entered pattern
-  independently of the expected answer. Never silently repair an attempt to
-  match the target.
-- Separate **pattern correctness** from **timing quality**. Begin with broad,
-  bounded recognition tolerance and descriptive timing feedback. Offer tighter
-  rhythm challenges later; avoid a single opaque percentage that mixes both.
-- Auto-check after a generous, speed-aware finishing pause, with an explicit
-  **Check** fallback. Prototype the pause before finalising it: an exact
-  three-unit timeout can split a beginner's intended character too early.
-  Do not finish immediately when the entered prefix happens to match the target.
-- In single-character practice, the finishing pause is an exercise submission
-  gesture; do not score it as standard inter-letter spacing. Assess real
-  letter/word spacing when multi-character practice is added.
-- Preserve the actual pattern for feedback, even if it is invalid or ambiguous.
-  Limit attempt duration and element count; distinguish cancellation from a
-  completed attempt so blur, tab switching or pointer cancellation cannot earn
-  credit or produce a misleading failure.
-- Keep sidetone responsive. Grade input intervals, not delayed audio output;
-  test touch devices and Bluetooth latency before choosing strict tolerances.
+| Option                   | What it teaches                                 | Scope                         |
+| ------------------------ | ----------------------------------------------- | ----------------------------- |
+| One held key             | Pattern recall and manual duration/spacing      | First sending implementation  |
+| Separate dit/dah buttons | Recall with automatic mark lengths              | Possible assisted input later |
+| Iambic paddles           | Electronic-keyer operation                      | Later specialist feature      |
+| Free-keying sandbox      | Exploration and playback of any entered pattern | Optional follow-up            |
 
-The first sending milestone stops at individual letters. Words, callsigns,
-spacing coaching, echo practice and paddles can follow independently.
+Sending rules:
 
-## Fit with the current code
+- Start with a provisional **10 WPM sending target**, independent of receiving
+  speed. Trial it on touch devices before finalising the default.
+- At the chosen speed, a dit is one unit, a dah three and an intra-character gap
+  one. Do not infer speed from a lone press: a long E and a short T are ambiguous.
+- Capture monotonic input timestamps and decode independently of the expected
+  answer. Never repair the pattern to make it match the prompt.
+- Separate **pattern correctness** from **timing feedback**. Start with broad,
+  bounded recognition tolerance and one useful correction, such as
+  "Correct A. Make the dash a little longer."
+- Auto-check after a generous speed-aware finishing pause, with an explicit
+  **Check** fallback. Trial the timeout; an exact three-unit pause can split a
+  beginner's intended character. Matching a target prefix must not submit early.
+- The finishing pause submits a single-character exercise; it is not graded as
+  standard inter-letter spacing. Assess spacing when words/groups are added.
+- Show the actual pattern for invalid/ambiguous attempts. Bound the attempt's
+  length/duration and distinguish normal release from cancellation.
+- Blur, tab switching or pointer cancellation must stop the sound and discard
+  the interrupted attempt without awarding credit or a misleading failure.
+- Grade input intervals, not delayed speaker output. Keep sidetone responsive
+  and trial Bluetooth/touch latency before introducing strict timing challenges.
 
-The repository already has React Router, Tone.js, a shared Morse alphabet,
-local reference playback and a keyboard/pointer input hook. No new backend or
-major application framework is needed.
+## Implementation boundaries
 
-| Existing code                                                   | Planned use or constraint                                                                                                                                                                             |
-| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.tsx`                                                 | Add a sibling `/training` route. Do not mount the live session as a parent of Training. Verify direct navigation and refresh on the host.                                                             |
-| `src/App.tsx`                                                   | Keep the live page; share lightweight navigation/footer presentation where useful.                                                                                                                    |
-| `src/beep/MorseCodeCharacters.ts`                               | Single source of character-to-pattern mappings; curriculum order lives separately.                                                                                                                    |
-| `src/beep/MorseCodeDuration.ts` and `MorseCodeParser.ts`        | Reuse standard mark timing. The parser currently has one WPM parameter; Farnsworth needs an explicit later extension with unchanged defaults for live playback.                                       |
-| `src/hooks/useMorseSession.ts`                                  | Currently combines local audio, settings and WebSocket lifecycle. Training must not instantiate it just to get a local playback function.                                                             |
-| `src/hooks/useMorseKey.ts`                                      | Reuse focus, repeat and input-ownership handling. Its current stop callback conflates normal release and cancellation; sending assessment needs that distinction without changing live key behaviour. |
-| `src/components/MorseKey.tsx`                                   | Reuse the visual control with training-appropriate labels and help text; avoid broadcast/connection wording in Training.                                                                              |
-| `src/settings/preferences.ts` and `src/hooks/usePreferences.ts` | Follow guarded storage/validation patterns, but keep training speed, curriculum and progress separate from live settings.                                                                             |
-| `tests/`                                                        | Existing Vitest/Testing Library infrastructure can cover pure lesson rules, input lifecycle and route isolation.                                                                                      |
+No new backend, state-management library or persistence layer is needed.
 
-### Boundaries
+| Existing code                                                 | Planned use                                                                                                                                 |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| src/index.tsx                                                 | Add a sibling Training route; do not mount the live session as its parent.                                                                  |
+| src/App.tsx                                                   | Share lightweight navigation/presentation where useful.                                                                                     |
+| src/beep/MorseCodeCharacters.ts                               | Reuse character mappings; keep lesson order separate.                                                                                       |
+| src/beep/MorseCodeDuration.ts and src/beep/MorseCodeParser.ts | Reuse tone timing; add Farnsworth only with multi-character exercises.                                                                      |
+| src/hooks/useMorseSession.ts                                  | Audio and networking are currently coupled. Training must not instantiate this hook to obtain local playback.                               |
+| src/hooks/useMorseKey.ts                                      | Reuse input ownership/focus handling. Sending needs normal release and cancellation distinguished.                                          |
+| src/components/MorseKey.tsx                                   | Reuse the control with training labels/help text.                                                                                           |
+| src/settings/preferences.ts                                   | Existing audio preferences may be read through guarded helpers; Training must not write live settings or introduce saved training settings. |
+| tests/                                                        | Use existing Vitest/Testing Library infrastructure.                                                                                         |
 
-- Put curriculum, prompt selection, grading and progress validation in small,
-  pure TypeScript modules under a proposed `src/training/` directory. Keep the
-  training page and session hook there as well; exact filenames can follow the
-  first implementation.
-- Provide a cancellable local tone player independent of the socket. Extract
-  only the shared audio primitive needed by training; avoid a broad rewrite of
-  the live remote-playback system. Reuse the existing audio library.
-- Schedule marks against the audio clock. UI timers may drive feedback but
-  must not determine tone durations. Only one training prompt/example/manual
-  tone can own playback at a time.
-- Stop and dispose training-owned voices and cancel pending callbacks on pause,
-  route changes, hidden tabs and audio suspension. Guard delayed audio-start
-  promises and repeat clicks. Resume only from a deliberate user action.
-- Navigating from Live to Training must close the live connection, end any held
-  key and cancel queued/remote playback. Returning to Live must require an
-  explicit Connect action. A shared shell must not keep the live hook mounted.
-- Keep training settings/progress in a versioned record, proposed key
-  `morse.training.v1`: curriculum ID/version, lesson position, separate receiving
-  and sending settings/results, and bounded per-character/recent statistics.
-  Validate parsed data and numeric ranges; handle unavailable/full storage with
-  in-memory state that survives audio interruptions and in-app navigation.
-- Persist compact results, not an unlimited history of key events. A changed
-  curriculum must reconcile known character IDs rather than reinterpreting an
-  old numeric level. Reset affects training data only.
-- Client-only progress means no cross-device sync. Do not introduce analytics
-  or API requests for attempts, answers or progress. Future export/import, if
-  useful, can remain local too.
+Put static curriculum, prompt selection and assessment in small pure TypeScript
+modules under a proposed src/training/ directory, with the page/session hook
+alongside them. Keep round state local to the page. Derive lesson data from the
+URL; no application-wide training store, migrations or localStorage/IndexedDB
+training record is required.
+
+Provide a cancellable local tone player independent of the socket. Extract only
+the shared audio primitive that is needed; keep the existing remote playback
+system intact. Schedule tone durations against the audio clock.
+
+Only one prompt/example/manual tone can play at a time. Cancel scheduled sound
+and callbacks on pause, hidden tabs, route changes and audio suspension. Guard
+delayed audio-start promises and repeated clicks; resume only by user action.
+
+Leaving Live for Training must close the live connection, release any held key
+and cancel queued/remote playback. Returning to Live requires Connect. A shared
+shell must not preserve an active live session behind Training.
 
 ## Delivery milestones
 
-Each implementation change should have its own reviewable Conventional Commit.
-Keep this plan current in the same branch or carry it forward when splitting PRs.
+Use one logical change per Conventional Commit and keep this plan current.
 
-- [x] **0. Research and discussion draft.** Document confirmed scope, sources,
-      proposals and open decisions. No production code changes.
-- [ ] **1. Local listening slice.** Add `/training` and navigation, audio
-      isolation, E/T introduction and a complete untimed round with replay and
-      feedback. Verify it works with the backend unavailable.
-- [ ] **2. Usable alphabet course.** Add the data-driven curriculum, progression,
-      per-character review, saved progress, lesson selection and round summary.
-      This is the intended first receiving release; milestones 1 and 2 may be
-      separate commits in the same PR.
-- [ ] **3. Sending prototype and first release.** Reuse safe key input, capture
-      intervals, decode single letters independently of the target, then add
-      useful timing feedback and separate progress. Trial touch ergonomics and
-      tolerances before finalising the progression rule for sending.
-- [ ] **4. Broader practice, selected later.** Custom character sets, digits and
-      punctuation, free recall, groups/words/callsigns and Farnsworth spacing.
-      Optional Koch preset, Nordic letters, paddles, free-keying playground,
-      local export/import and offline reload support remain independent choices.
+- [x] **0. Research and decisions.** Record the simple lesson-list requirement,
+      minimal-state constraint and selected Koch curriculum.
+- [ ] **1. Local listening slice.** Add the route, lesson-list structure and K/M
+      lesson with local audio, answers, replay and a current-round score.
+- [ ] **2. Complete the fixed course.** Populate all 40 lessons from the LCWO
+      sequence, handle lesson URLs and repeat/next/list navigation, and check
+      mobile/keyboard behaviour. Milestones 1 and 2 form the receiving release.
+- [ ] **3. Single-character sending.** Add key-event capture, independent
+      decoding, cancellation handling and pattern/timing feedback. Trial touch
+      ergonomics and tolerance; keep state limited to the active exercise.
+- [ ] **4. Broader practice, selected later.** Free recall, groups/words/callsigns
+      and Farnsworth spacing; optional custom sets, Nordic letters, paddles or
+      sandbox. Saved progress and adaptive training are outside the current
+      plan and require a future product decision.
 
 Possible commit subjects:
 
-- `feat(training): add local listening practice`
-- `feat(training): add progressive alphabet lessons and saved progress`
-- `feat(training): add straight-key sending practice`
-- `feat(training): add word practice with Farnsworth spacing`
+- feat(training): add local listening practice
+- feat(training): add the fixed Koch lesson list
+- feat(training): add straight-key sending practice
+- feat(training): add word practice with Farnsworth spacing
 
 ## Verification when implementing
 
-- Training can be opened directly, started and used without a backend. Observe
-  that no `/beep` WebSocket is constructed and no attempts/progress leave the
-  browser, including when arriving from a connected live session.
-- Verify correct timings, complete-character playback, replay cancellation and
-  audio-start failure/recovery. Hidden tabs, route changes and rapid actions
-  must leave no stale tones, callbacks or accidental answers.
-- Exercise progression with wrong answers, retries, hints, repeats and a weak
-  newest character. Every active character remains eligible; displayed accuracy
-  and advancement use the documented scoring rules.
-- Test saved-state validation, curriculum version changes and blocked/full
-  storage. Audio suspension or route navigation must not discard in-memory
-  progress. Reloading with storage unavailable necessarily loses that progress.
-- For sending, test known timing fixtures, invalid/ambiguous patterns, extra
-  elements, slow spacing, key repeats, overlapping inputs, normal release versus
-  cancellation, and explicit/automatic submission. Expected answers must not
-  influence the decoder's result.
-- Check desktop and narrow mobile layouts, touch targets, focus, keyboard
-  entry, screen-reader labels/status and reduced motion. Do not put the hidden
-  answer into an accessible label before feedback. Treat any future visual
-  signalling mode as a distinct exercise rather than claiming auditory mastery.
-- Recheck the live key, reference preview, notes and connection cleanup after
-  shared-code changes. Run the repository's existing tests, type checking,
-  formatting, lint and build for implementation PRs. A documentation-only plan
-  needs document/diff checks, not new application tests.
+- Open Training directly and from a connected live session. No /beep WebSocket
+  or training-data API request should remain/open on Training.
+- Check that the sequence has 41 distinct mapped characters, yields 40 lessons
+  and adds one character per lesson after K/M. Exercise valid/invalid lesson
+  URLs and browser navigation.
+- Verify complete-character playback, correct timing, replay cancellation,
+  audio-start failures and interrupted rounds. No stale tones or auto-resume.
+- Test scoring with wrong answers, assisted answers, repeats and cancelled
+  prompts. Every lesson is accessible independently of prior scores.
+- Verify that training makes no persistence writes, that leaving/reloading
+  discards the round, and that blocked storage does not prevent practice.
+- For sending, use timing fixtures for valid/invalid/ambiguous patterns, extra
+  elements, key repeats, overlapping inputs, cancellation and submission.
+  Expected answers must not affect the decoder's output.
+- Check narrow mobile layouts, touch targets, focus, keyboard input,
+  screen-reader labels/status and reduced motion. Do not expose the hidden
+  answer through an accessible label before feedback.
+- Recheck live keying, reference preview, notes and connection cleanup after
+  shared-code changes. Use existing tests, type checking, formatting, lint and
+  build for implementation PRs; this plan-only change needs document checks.
 
-## Decisions to discuss
+## Decision log and handoff
 
-| Topic          | Current proposal                                                                      | Status                                       |
-| -------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Entry point    | Visible Live / Training navigation; separate `/training` page                         | Proposed                                     |
-| Curriculum     | Beginner E/T course, then one new letter at a time                                    | Proposed; alternative is a Koch-style course |
-| First release  | Listen only, untimed character answers, saved alphabet progress                       | Proposed                                     |
-| Progression    | Short rounds, suggested advancement based on accuracy, manual lesson choice available | Thresholds need trial                        |
-| Second feature | Prompted single-letter straight-key sending; pattern and rhythm feedback separated    | Proposed                                     |
-| Later scope    | Words/custom sets before specialist modes or offline installation                     | Open                                         |
+| Decision                                               | Status                                                            |
+| ------------------------------------------------------ | ----------------------------------------------------------------- |
+| Simple list with all lessons available                 | Chosen by user on 2026-10-04                                      |
+| Minimal client state; no new training persistence      | Chosen by user; implemented here as current-round-only state      |
+| Koch progression with LCWO's sequence                  | Selected under user's delegated choice of an established approach |
+| Local receiving first, sending second                  | Original requested order                                          |
+| 20 WPM receiving, 20-prompt rounds, manual advancement | Implementation defaults; tune from practical trials               |
+| Saved/adaptive progress                                | Removed from current scope                                        |
 
-## Handoff
-
-The next action is to discuss the curriculum and first-release scope with the
-user, then record the chosen defaults here. Start implementation with milestone
-1 only after that discussion. Do not treat every later idea as approved scope.
-Before coding in a later session, compare the branch with current `main` and
-check for new repository instructions. Keep one logical change per commit and
-preserve linear history.
+The next implementation task is milestone 1. No further choice between a
+lesson list and Continue flow, or between E/T and Koch curricula, is needed.
+Before coding, compare the branch with current main and check for new repository
+instructions. Preserve linear history and do not treat deferred ideas as
+approved work.
 
 ## Sources
 
-1. [Morse Mania App Store listing](https://apps.apple.com/us/app/morse-mania-learn-morse-code/id1511042196)
-2. [Developer: Morse Mania overview](https://www.dong.world/2020/05/morse-mania/)
-3. [Developer: speed, Farnsworth timing and learning features](https://www.dong.world/2020/05/morse-mania-is-powerful/)
-4. [Developer: sending training](https://www.dong.world/2021/08/morse-mania-6/)
-5. [ARRL: Learning Morse Code](https://www.arrl.org/learning-morse-code)
-6. [G4FON: Morse trainer and timing approaches](https://www.g4fon.net/CW%20Trainer2.php)
+1. [ARRL: Learning Morse Code](https://www.arrl.org/learning-morse-code)
+2. [LCWO source: default Koch character sequence](https://github.com/dj1yfk/lcwo/blob/master/inc/functions.php) and [course lessons](https://github.com/dj1yfk/lcwo/blob/master/inc/courselesson.php)
+3. [Allan (1958): A Pattern Recognition Method of Learning Morse Code](https://bpspsychub.onlinelibrary.wiley.com/doi/10.1111/j.2044-8295.1958.tb00639.x) — publisher abstract consulted
+4. [CW Academy: beginner curriculum](https://cwops.org/wp-content/uploads/2025/02/Beginner-curriculum.htm)
+5. [Morse Mania developer: overview](https://www.dong.world/2020/05/morse-mania/)
+6. [Morse Mania developer: speed and learning features](https://www.dong.world/2020/05/morse-mania-is-powerful/)
+7. [Morse Mania developer: sending training](https://www.dong.world/2021/08/morse-mania-6/)
