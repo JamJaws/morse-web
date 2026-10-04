@@ -9,9 +9,10 @@ import {
   FaVolumeMute,
   FaVolumeUp,
 } from 'react-icons/fa';
-import MorseCodeTable from './beep/MorseCodeTable';
 import MorseCodeInput from './beep/MorseCodeInput';
 import { MorseKey } from './components/MorseKey';
+import { MorseReference } from './components/MorseReference';
+import { ListeningNotes } from './components/ListeningNotes';
 import { DebugPanel } from './components/DebugPanel';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -96,10 +97,8 @@ function App() {
   const moreActionsTrigger = useRef<HTMLButtonElement>(null);
   const messageInput = useRef<HTMLInputElement>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [panel, setPanel] = useState<'reference' | 'message' | null>(() =>
-    searchParams.get('tx') === '' || searchParams.get('tx') === 'true'
-      ? 'message'
-      : null,
+  const [showMessage, setShowMessage] = useState(
+    () => searchParams.get('tx') === '' || searchParams.get('tx') === 'true',
   );
   const input = useMorseKey(
     session.started && !showSettings,
@@ -171,7 +170,7 @@ function App() {
                   // Reveal the input before focusing it in this user action.
                   flushSync(() => {
                     setShowSettings(false);
-                    setPanel('message');
+                    setShowMessage(true);
                   });
                   messageInput.current?.focus();
                 }}
@@ -182,18 +181,17 @@ function App() {
       </header>
       {/* Equal side columns keep the transmitter centered across the page. */}
       <main
-        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)_15rem]' : 'flex flex-col justify-center'}`}
+        className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[18rem_minmax(0,1fr)_18rem]' : 'flex flex-col justify-center'}`}
       >
-        {session.started && (
-          <div className="min-w-0">
-            <OperatorList
-              operators={session.operators}
-              myOperatorId={session.myOperatorId}
-              activeOperatorIds={session.activeOperatorIds}
-              connected={connected}
-            />
-          </div>
-        )}
+        {/* Keep drafts and panel choices mounted while audio is paused. */}
+        <div hidden={!session.started} className="min-w-0">
+          <OperatorList
+            operators={session.operators}
+            myOperatorId={session.myOperatorId}
+            activeOperatorIds={session.activeOperatorIds}
+            connected={connected}
+          />
+        </div>
         <div className="flex min-w-0 flex-col">
           {showSettings && (
             <SettingsPanel
@@ -248,19 +246,6 @@ function App() {
                     · Local playback only
                   </p>
                 )}
-                <div className="mt-8 flex flex-wrap justify-center gap-3">
-                  <Button
-                    aria-expanded={panel === 'reference'}
-                    aria-controls="morse-reference"
-                    onClick={() =>
-                      setPanel(current =>
-                        current === 'reference' ? null : 'reference',
-                      )
-                    }
-                  >
-                    Morse reference
-                  </Button>
-                </div>
               </section>
             )
           )}
@@ -270,65 +255,55 @@ function App() {
           >
             {session.notice}
           </p>
-        </div>
-        {session.started && (
           <div
-            hidden={showSettings || panel === null}
-            className="col-span-full mx-auto w-full max-w-5xl"
+            hidden={!session.started || showSettings}
+            className="mx-auto mt-6 w-full max-w-sm"
           >
-            <section
-              id="morse-reference"
-              hidden={showSettings || panel !== 'reference'}
-              aria-labelledby="reference-heading"
-              className="rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-            >
+            <ListeningNotes />
+          </div>
+        </div>
+        <div hidden={!session.started || showSettings} className="min-w-0">
+          <MorseReference
+            wpm={session.wpm}
+            onPlay={character => session.playMyMorseCode(character.code)}
+          />
+        </div>
+        <div
+          hidden={!session.started || showSettings || !showMessage}
+          className="col-span-full mx-auto w-full max-w-5xl"
+        >
+          <section
+            id="morse-message"
+            aria-labelledby="message-heading"
+            className="mx-auto max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
+          >
+            <div className="mb-4 flex items-center justify-between gap-3">
               <h2
-                id="reference-heading"
+                id="message-heading"
                 className="text-xl font-semibold tracking-tight"
               >
-                Morse reference
+                Transmit text
               </h2>
-              <p className="mt-2 mb-6 text-sm leading-relaxed text-muted">
-                Local playback · {session.wpm} WPM
-              </p>
-              <MorseCodeTable
-                onClick={character => session.playMyMorseCode(character.code)}
-              />
-            </section>
-            <section
-              id="morse-message"
-              hidden={showSettings || panel !== 'message'}
-              aria-labelledby="message-heading"
-              className="mx-auto max-w-2xl rounded-3xl border border-stroke bg-surface p-4 sm:p-6"
-            >
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2
-                  id="message-heading"
-                  className="text-xl font-semibold tracking-tight"
-                >
-                  Transmit text
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Close text transmitter"
-                  onClick={() => {
-                    setPanel(null);
-                    moreActionsTrigger.current?.focus();
-                  }}
-                >
-                  <FaTimes aria-hidden="true" />
-                </Button>
-              </div>
-              <MorseCodeInput
-                inputRef={messageInput}
-                onSend={session.sendText}
-                connected={connected}
-                wpm={session.wpm}
-              />
-            </section>
-          </div>
-        )}
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close text transmitter"
+                onClick={() => {
+                  setShowMessage(false);
+                  moreActionsTrigger.current?.focus();
+                }}
+              >
+                <FaTimes aria-hidden="true" />
+              </Button>
+            </div>
+            <MorseCodeInput
+              inputRef={messageInput}
+              onSend={session.sendText}
+              connected={connected}
+              wpm={session.wpm}
+            />
+          </section>
+        </div>
       </main>
       {debug && <DebugPanel session={session} />}
       <Footer />
