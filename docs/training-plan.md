@@ -156,8 +156,11 @@ Defaults and scoring:
   or custom practice visit.
 - Leaving the training page or refreshing discards the round. Interruptions
   may retain the current round while the page is mounted, but never resume
-  sound automatically. Cancel both feedback/retry timers and audio on hidden
-  tabs, audio suspension, leaving, settings changes or changing the custom set.
+  sound automatically after an actual audio interruption. Tab switches alone
+  do not pause the round: a sound may finish in the background and then wait
+  for an answer. Already-heard prompts stay answerable even if the browser
+  suspends audio. Cancel feedback/retry timers and unfinished audio on audio
+  suspension, leaving, settings changes or changing the custom set.
   Next sound, Resume or explicitly enabling autoplay may continue the round.
 
 Farnsworth spacing preserves normal element timing and stretches the spaces
@@ -233,7 +236,7 @@ the shared audio primitive that is needed; keep the existing remote playback
 system intact. Schedule tone durations against the audio clock.
 
 Only one prompt/example/manual tone can play at a time. Cancel scheduled sound
-and callbacks on pause, hidden tabs, route changes and audio suspension. Guard
+and callbacks on settings changes, route changes and audio suspension. Guard
 delayed audio-start promises and repeated clicks; resume only by user action.
 
 Leaving Live for Training must close the live connection, release any held key

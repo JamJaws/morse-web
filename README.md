@@ -100,13 +100,15 @@ first answer determines the score, so retries cannot turn a mistake into credit.
 next sound plays automatically. Turn it off in the practice card to select
 Next sound yourself. Autoplay stops at the round results.
 Each sound waits for an answer indefinitely, so no Pause button is needed.
-Leaving, switching tabs, audio suspension or changing sound settings cancels
-pending playback and advancement until you choose to continue.
+Switching tabs lets the current sound finish, then the question waits for your
+answer. Leaving the lesson, an actual audio interruption or changing sound
+settings cancels pending playback and advancement.
 
 Training runs locally without Connect or a backend. Scores and sound-setting
 changes are kept only in memory and cleared when leaving the lesson. The page
-reads the saved live volume but does not change live preferences. Interrupted
-audio requires Resume before it plays again.
+reads the saved live volume but does not change live preferences. If the browser
+interrupts an unfinished sound, Resume plays it again. A completed sound remains
+answerable even if the audio context is later suspended.
 
 Leaving Live for Training disconnects the live session and stops its tones.
 Returning to Live requires Connect. Offline page reloads and sending practice

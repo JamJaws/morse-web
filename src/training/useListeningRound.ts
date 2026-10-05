@@ -74,16 +74,13 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
 
   useEffect(() => {
     const context = Tone.getContext();
-    const onVisibility = () => {
-      if (document.hidden) pause();
-    };
     const onAudioState = () => {
-      if (context.state !== 'running') pause();
+      // A completed sound remains answerable even if the browser suspends audio.
+      if (context.state !== 'running' && current.current.phase !== 'answering')
+        pause();
     };
-    document.addEventListener('visibilitychange', onVisibility);
     context.on('statechange', onAudioState);
     return () => {
-      document.removeEventListener('visibilitychange', onVisibility);
       context.off('statechange', onAudioState);
       cancelAudio();
     };
@@ -94,7 +91,6 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
       setError('Turn up the volume in Sound settings to listen.');
       return false;
     }
-    if (document.hidden) return false;
     setError(null);
     return true;
   }
@@ -176,13 +172,9 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     transition.current = setTimeout(() => {
       transition.current = undefined;
       const state = current.current;
-      if (
-        state.phase === 'feedback' &&
-        !state.paused &&
-        !document.hidden &&
-        Tone.getContext().state === 'running'
-      )
-        next();
+      if (state.phase !== 'feedback' || state.paused) return;
+      if (Tone.getContext().state === 'running') next();
+      else pause();
     }, 750);
   }
 

@@ -170,20 +170,19 @@ it('enables autoplay by default, replays incorrect sounds and advances after a c
   expect(mocks.oscillators).toHaveLength(completedVoices);
 });
 
-it('cancels delayed advancement when hidden or changing settings and does not resume automatically', async () => {
+it('continues across tab switches but cancels retries and advancement on settings changes', async () => {
   open();
   await click('Start lesson');
   await finishSound();
   await click('Answer K');
   const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
   fireEvent(document, new Event('visibilitychange'));
+  await finishSound();
+  expect(screen.getByText('Sound 2 of 20')).toBeDefined();
+  expect(screen.getByText('What did you hear?')).toBeDefined();
   hidden.mockReturnValue(false);
   fireEvent(document, new Event('visibilitychange'));
-  await finishSound();
-  expect(screen.getByText('Paused')).toBeDefined();
-  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
-  await click('Next sound');
-  await finishSound();
+  expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
   await click('Answer K');
   fireEvent.change(screen.getByLabelText('Volume'), {
     target: { value: 70 },
@@ -363,25 +362,31 @@ it('scores first answers once, allows free replays and separates visual hints', 
   expect(screen.getByText('0 correct without hints')).toBeDefined();
 });
 
-it('pauses hidden or suspended audio and resumes only by choice without penalising interruption', async () => {
+it('keeps completed questions answerable and only pauses audio that was interrupted', async () => {
   open();
   await click('Start lesson');
   const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
   fireEvent(document, new Event('visibilitychange'));
-  expect(screen.getByText('Paused')).toBeDefined();
+  await finishSound();
+  expect(screen.getByText('What did you hear?')).toBeDefined();
   expect(
     mocks.oscillators.every(voice => voice.dispose.mock.calls.length === 1),
   ).toBe(true);
+  act(() => {
+    mocks.context.state = 'interrupted';
+    mocks.context.on.mock.calls.at(-1)![1]();
+  });
   hidden.mockReturnValue(false);
   fireEvent(document, new Event('visibilitychange'));
-  await finishSound();
-  expect(screen.getByText('Paused')).toBeDefined();
-  await click('Resume');
-  await finishSound();
+  expect(screen.getByText('What did you hear?')).toBeDefined();
+  expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
   await click('Answer K');
   expect(screen.getByText('1 correct without hints')).toBeDefined();
+  await advance(750);
+  expect(screen.getByText('Paused')).toBeDefined();
+  // Sound needs a working audio context, but the completed answer was accepted.
+  mocks.context.state = 'running';
   await click('Next sound');
-  await finishSound();
   act(() => {
     mocks.context.state = 'suspended';
     mocks.context.on.mock.calls.at(-1)![1]();
