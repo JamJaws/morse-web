@@ -136,6 +136,12 @@ it('enables autoplay by default, replays incorrect sounds and advances after a c
   ).toBe(true);
   await click('Start lesson');
   await finishSound();
+  const idleVoices = mocks.oscillators.length;
+  await advance(60_000);
+  expect(screen.getByText('What did you hear?')).toBeDefined();
+  expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+  expect(mocks.oscillators).toHaveLength(idleVoices);
+  expect(screen.queryByRole('button', { name: 'Pause' })).toBeNull();
   await click('Answer M');
   expect(screen.getByText('Try again.')).toBeDefined();
   const voices = mocks.oscillators.length;
@@ -164,7 +170,7 @@ it('enables autoplay by default, replays incorrect sounds and advances after a c
   expect(mocks.oscillators).toHaveLength(completedVoices);
 });
 
-it('cancels delayed advancement when hidden or paused and does not resume automatically', async () => {
+it('cancels delayed advancement when hidden or changing settings and does not resume automatically', async () => {
   open();
   await click('Start lesson');
   await finishSound();
@@ -179,7 +185,9 @@ it('cancels delayed advancement when hidden or paused and does not resume automa
   await click('Next sound');
   await finishSound();
   await click('Answer K');
-  await click('Pause');
+  fireEvent.change(screen.getByLabelText('Volume'), {
+    target: { value: 70 },
+  });
   await finishSound();
   expect(screen.getByText('Sound 2 of 20')).toBeDefined();
   expect(document.activeElement).toBe(
@@ -189,7 +197,9 @@ it('cancels delayed advancement when hidden or paused and does not resume automa
   await click('Next sound');
   await finishSound();
   await click('Answer M');
-  await click('Pause');
+  fireEvent.change(screen.getByLabelText('Character speed'), {
+    target: { value: 25 },
+  });
   const voices = mocks.oscillators.length;
   await finishSound();
   expect(mocks.oscillators).toHaveLength(voices);
@@ -377,7 +387,7 @@ it('pauses hidden or suspended audio and resumes only by choice without penalisi
   await click('Resume');
   await finishSound();
   await click('Answer K');
-  // Listening again after Pause is also a free replay.
+  // Listening again after an interruption is also a free replay.
   expect(screen.getByText('Correct!')).toBeDefined();
   expect(screen.getByText('2 correct without hints')).toBeDefined();
 });

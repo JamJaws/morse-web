@@ -279,7 +279,6 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     error,
     start,
     next,
-    pause,
     replay,
     hint,
     answer,

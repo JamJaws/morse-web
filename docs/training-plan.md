@@ -130,8 +130,9 @@ Defaults and scoring:
 
 - Use **20 WPM character speed** and no answer deadline. This is not a claim
   of 20 effective WPM: the pauses depend on how long the user takes to answer.
-- Use **20 prompts per round**. Offer replay, hint, pause and exit. Keep answer
-  buttons stable while practising and support physical keyboard input.
+- Use **20 prompts per round**. Offer replay, hint and exit. A separate Pause
+  button is unnecessary: each sound waits indefinitely for an answer. Keep
+  answer buttons stable while practising and support physical keyboard input.
 - Choose uniformly from the lesson pool. Natural repeats are allowed, including
   in the two-character first lesson. No adaptive weighting or remembered
   weaknesses; a short round need not cover every character in later lessons.
@@ -153,10 +154,10 @@ Defaults and scoring:
   An answer example must finish before that delay starts. Wrong-answer replay
   works with either setting. The choice stays in memory for the current lesson
   or custom practice visit.
-- Leaving the training page or refreshing discards the round. Pause/audio
-  suspension may retain the current round while the page is mounted, but never
-  resume sound automatically. Cancel both feedback/retry timers and audio on
-  pause, hidden tabs, audio suspension, leaving or changing the custom set.
+- Leaving the training page or refreshing discards the round. Interruptions
+  may retain the current round while the page is mounted, but never resume
+  sound automatically. Cancel both feedback/retry timers and audio on hidden
+  tabs, audio suspension, leaving, settings changes or changing the custom set.
   Next sound, Resume or explicitly enabling autoplay may continue the round.
 
 Farnsworth spacing preserves normal element timing and stretches the spaces

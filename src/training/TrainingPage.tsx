@@ -10,7 +10,6 @@ import {
   FaArrowLeft,
   FaArrowRight,
   FaHeadphones,
-  FaPause,
   FaPlay,
   FaVolumeUp,
 } from 'react-icons/fa';
@@ -387,13 +386,6 @@ function ListeningPractice({
                     <FaVolumeUp aria-hidden="true" />
                     {session.previewing ? 'Playing…' : 'Hear answer'}
                   </Button>
-                  {(session.previewing ||
-                    (session.autoPlay && !round.paused)) && (
-                    <Button variant="ghost" onClick={session.pause}>
-                      <FaPause aria-hidden="true" />
-                      Pause
-                    </Button>
-                  )}
                 </>
               ) : round.phase === 'paused' ? (
                 <Button
@@ -419,10 +411,6 @@ function ListeningPractice({
                     disabled={round.phase !== 'answering' || round.prompt.hint}
                   >
                     Show hint
-                  </Button>
-                  <Button variant="ghost" onClick={session.pause}>
-                    <FaPause aria-hidden="true" />
-                    Pause
                   </Button>
                 </>
               )}
