@@ -30,11 +30,3 @@ export const lessons: readonly Lesson[] = characters
 export function lessonFromParam(value: string | null): Lesson | undefined {
   return lessons.find(lesson => String(lesson.id) === value);
 }
-
-export const ROUND_LENGTH = 20;
-
-export function chooseCharacter(
-  characters: readonly MorseCodeCharacter[],
-): MorseCodeCharacter {
-  return characters[Math.floor(Math.random() * characters.length)];
-}

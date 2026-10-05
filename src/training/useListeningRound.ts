@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Tone from 'tone';
 import type { MorseCodeCharacter } from '../beep/MorseCodeCharacter';
 import { readPreferences } from '../settings/preferences';
-import { chooseCharacter, ROUND_LENGTH } from './curriculum';
+import { createRound, getRoundLength } from './round';
 import { LocalMorsePlayer, type ListeningSettings } from './LocalMorsePlayer';
 
 interface Prompt {
@@ -27,9 +27,14 @@ type Round =
   | { phase: 'feedback'; prompt: Prompt; score: Score; paused: boolean }
   | { phase: 'complete'; score: Score };
 
-export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
+export function useListeningRound(
+  characters: readonly MorseCodeCharacter[],
+  focusLetter?: string,
+) {
   const [round, setRound] = useState<Round>({ phase: 'intro' });
   const current = useRef(round);
+  const prompts = useRef<MorseCodeCharacter[]>([]);
+  const roundLength = getRoundLength(characters.length);
   const [settings, setSettings] = useState<ListeningSettings>(() => ({
     wpm: 20,
     volume: readPreferences().volume,
@@ -120,7 +125,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
   function nextPrompt(score: Score) {
     void playPrompt(
       {
-        character: chooseCharacter(characters),
+        character: prompts.current[score.answered],
         hint: false,
         missed: false,
       },
@@ -133,13 +138,14 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
     const state = current.current;
     if ((state.phase !== 'intro' && state.phase !== 'complete') || !canPlay())
       return;
+    prompts.current = createRound(characters, focusLetter);
     nextPrompt({ answered: 0, correct: 0, hinted: 0 });
   }
 
   function next() {
     const state = current.current;
     if (state.phase !== 'feedback') return;
-    if (state.score.answered === ROUND_LENGTH) {
+    if (state.score.answered === roundLength) {
       cancelAudio();
       setPreviewing(null);
       commit({ phase: 'complete', score: state.score });
@@ -258,6 +264,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
 
   function reset() {
     cancelAudio();
+    prompts.current = [];
     setPreviewing(null);
     setError(null);
     commit({ phase: 'intro' });
@@ -265,6 +272,7 @@ export function useListeningRound(characters: readonly MorseCodeCharacter[]) {
 
   return {
     round,
+    roundLength,
     settings,
     previewing,
     autoPlay,

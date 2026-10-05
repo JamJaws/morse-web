@@ -115,7 +115,7 @@ static lessons; an invalid value falls back to the lesson list. Returning to
 
 1. Select a lesson. Show its new character(s), local sound examples and a
    **Start** button. Start enables audio without joining the live channel.
-2. Play one random character from that lesson's cumulative pool.
+2. Build a shuffled round from the cumulative pool and play its next character.
 3. Answer using labelled character buttons or the corresponding keyboard key.
    Accept scored input only after the complete character has played.
 4. Give brief feedback. On an error, show "Try again", wait 400 ms and replay
@@ -130,23 +130,40 @@ Defaults and scoring:
 
 - Use **20 WPM character speed** and no answer deadline. This is not a claim
   of 20 effective WPM: the pauses depend on how long the user takes to answer.
-- Use **20 prompts per round**. Offer replay, hint and exit. A separate Pause
-  button is unnecessary: each sound waits indefinitely for an answer. Keep
+- Use **at least 20 prompts, or twice the character count if larger**. Offer
+  replay, hint and exit. A separate Pause button is unnecessary: each sound waits indefinitely for an answer. Keep
   answer buttons stable while practising and support physical keyboard input.
 - Arrange answers as a QWERTY keyboard, with unavailable letters visible but
   disabled. Show the number row and each punctuation row only when the set
   contains one of its characters. Custom sets with Å/Ä/Ö use Swedish letter
   positions. The lesson sequence still determines which characters are taught,
   while the keyboard gives answers a familiar, stable location.
-- Choose uniformly from the lesson pool. Natural repeats are allowed, including
-  in the two-character first lesson. No adaptive weighting or remembered
-  weaknesses; a short round need not cover every character in later lessons.
+- Guarantee every selected character appears before shuffling the complete
+  round. Natural repeats are allowed, including in the two-character first
+  lesson. Build a fresh shuffled list on Start/Repeat and discard it on exit
+  or changing the custom set. No saved history or adaptive weakness tracking.
+- In lessons 2–38, allocate the newest character the larger of the rounded
+  20% share and the rounded-up equal share. This prevents underrepresenting
+  the new sound when only three or four characters are available. Distribute
+  remaining prompts evenly across older characters, randomly choosing which
+  receive an extra turn when division is uneven. Lesson 8 has four L prompts
+  and two of each older character; lesson 19 has 40 prompts, eight of them new.
+- Treat lesson 1, the final lesson and custom sets as balanced practice: each
+  character occurs equally often, or differs by at most one. Lesson 1 has ten
+  K and ten M; the final lesson has 80 prompts, two per character including X.
+  Custom practice uses the same length rule, including one-character sets and
+  ÅÄÖ; all 57 mapped characters produce 114 prompts. Empty sets cannot start.
+- This distribution addresses omitted characters in short independent random
+  draws. LCWO's author introduced weighting for newer characters for the same
+  reason [12]. Finley's Koch guide uses five-minute copying exercises [13],
+  while Morsy describes 30-character drills [8]. Our precise counts, coverage
+  guarantee and 20% weighting are product defaults, not a proven optimum.
 - Count each prompt once. A wrong first answer stays wrong even after several
   retries. Replays (including Resume) are free. Only an explicit Show hint
   changes a first correct answer into the separate hinted category.
   Interrupted playback and cancelled prompts do not count as mistakes.
-- Keep a few current-round counters and the current prompt, not a saved history
-  of attempts. At the end, show first-answer accuracy without hints, hinted
+- Keep the shuffled round, a few counters and the current prompt, not a saved
+  history of attempts. At the end, show first-answer accuracy without hints, hinted
   answers and mistakes.
 - Give lightweight guidance to repeat until the user regularly reaches about
   **90% accuracy**. This is guidance, not a gate, saved mastery score or claim
@@ -281,6 +298,9 @@ Possible commit subjects:
 - Check that the sequence has 40 distinct mapped characters, yields 39 lessons
   and adds one character per lesson after K/M. Exercise valid/invalid lesson
   URLs and browser navigation.
+- Check guaranteed coverage, balanced review counts, new-character weighting,
+  first/final/custom round lengths and fresh shuffling on Repeat. Retries and
+  replays must retain the current prompt without consuming another position.
 - Verify complete-character playback, correct timing, replay cancellation,
   audio-start failures and interrupted rounds. No stale tones or auto-resume.
 - Test scoring with wrong answers, hints, free replays, repeats and cancelled
@@ -304,11 +324,13 @@ Possible commit subjects:
 
 - `src/training/curriculum.ts` derives 39 cumulative lessons from the fixed
   sequence and validates bookmarked lesson numbers.
+- `src/training/round.ts` builds balanced or new-character-weighted rounds
+  with guaranteed coverage, dynamic lengths and Fisher–Yates shuffling.
 - `src/training/LocalMorsePlayer.ts` schedules local 600 Hz tones using the
   existing parser and Tone audio clock. Each scheduled mark is disposable;
   cancellation also guards delayed audio activation and completion callbacks.
-- `src/training/useListeningRound.ts` holds only the current prompt, round
-  counters and temporary sound controls. There is no attempt history or
+- `src/training/useListeningRound.ts` holds only the shuffled prompts, current
+  prompt, round counters and temporary sound controls. There is no attempt history or
   persistence. Replays are free; only hints affect the first-answer score.
   Wrong answers automatically replay the same prompt, with one mistake recorded
   when the prompt is eventually answered correctly. Autoplay starts enabled
@@ -329,33 +351,39 @@ Possible commit subjects:
 
 Verification on 2026-10-05:
 
-- All **215 Vitest tests** pass, including 22 training tests for curriculum,
+- All **222 Vitest tests** pass, including 29 training tests for curriculum,
   scheduling/cancellation, scoring, navigation, blocked storage, keyboard
   input and live-session cleanup, plus QWERTY rows, disabled keys, all custom
   characters and completed answers surviving tab/audio-context changes.
+  Round tests cover guaranteed character coverage, early-lesson weighting,
+  balanced first/final/custom rounds, updated lengths and score denominators,
+  fresh shuffling on Repeat, and retries retaining the same prompt.
 - Type checking, ESLint, Prettier and the production build pass. Vite retains
   its bundle-size warning; no runtime dependencies were added.
-- A Chromium smoke check against the production build passed desktop and
+- Before the round-distribution changes, a Chromium smoke check passed desktop and
   320/375 px layouts, native Web Audio completion, keyboard input/focus,
   replay scoring, all 40 course answer choices, custom ÅÄÖ practice, default
   autoplay, keyboard/touch operation of the switch,
   reload reset and return to Live.
   Training produced no storage writes, API requests or WebSocket connections.
+- The round-distribution browser recheck was blocked by Chromium crashing on
+  launch. Automated tests cover the updated counters and complete-round scores.
 - Physical-device audio, iOS/Safari and screen-reader listening still need
   practical trials. Headless playback checks validate scheduling and browser
   behaviour, not perceived sound quality or learning effectiveness.
 
 ## Decision log and handoff
 
-| Decision                                              | Status                                                                            |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
-| Simple list with all lessons available                | Chosen by user on 2026-10-04                                                      |
-| Minimal client state; no new training persistence     | Chosen by user; implemented here as current-round-only state                      |
-| Koch progression with G4FON's sequence                | Updated at user's request after checking the Morsy guide and established trainers |
-| Local receiving first, sending second                 | Original requested order                                                          |
-| 20 WPM receiving, 20-prompt rounds, optional autoplay | Autoplay on by default at user's request; 750 ms successful feedback              |
-| Custom sets including ÅÄÖ and free replays            | Requested by user on 2026-10-04; implemented without persistence                  |
-| Saved/adaptive progress                               | Removed from current scope                                                        |
+| Decision                                             | Status                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Simple list with all lessons available               | Chosen by user on 2026-10-04                                                        |
+| Minimal client state; no new training persistence    | Chosen by user; implemented here as current-round-only state                        |
+| Koch progression with G4FON's sequence               | Updated at user's request after checking the Morsy guide and established trainers   |
+| Local receiving first, sending second                | Original requested order                                                            |
+| 20 WPM receiving, growing rounds, optional autoplay  | At least 20 prompts or twice the pool size; autoplay on by default, 750 ms feedback |
+| Guaranteed coverage and extra new-character practice | Requested on 2026-10-05; first/final/custom rounds balanced, lessons 2–38 weighted  |
+| Custom sets including ÅÄÖ and free replays           | Requested by user on 2026-10-04; implemented without persistence                    |
+| Saved/adaptive progress                              | Removed from current scope                                                          |
 
 The next implementation task is milestone 3: straight-key sending. Use the
 same fixed lesson list and keep all exercise state in memory. Before that
@@ -377,3 +405,5 @@ and do not treat deferred ideas as approved work.
 9. [Morse Code World: character recognition trainer](https://morsecode.world/international/trainer/character.html)
 10. [G4FON: Koch trainer and ordering origin](https://www.g4fon.net/CW%20Trainer.php)
 11. [LICW: comparison of character sequences](https://longislandcwclub.org/wp-content/uploads/2022/11/ANALYSES-OF-OTHER-CHARACTER-SEQUENCES.pdf)
+12. [LCWO author: weighting newer characters](https://lcwo.net/forum/574)
+13. [David Finley: Morse training by the Koch method](https://www.qsl.net/n1irz/finley.morse.html)

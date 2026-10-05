@@ -90,7 +90,14 @@ can be bookmarked, for example `/training?lesson=3`.
 including Å, Ä and Ö. Quick sets select A–Z, 0–9 or ÅÄÖ; individual characters
 can be added or removed. The selection stays only for the current visit.
 
-Hear the examples, then start a 20-sound round. Answer with the QWERTY buttons
+Hear the examples, then start a round: at least 20 sounds, growing to twice
+the number of selected characters. Every character is included, in shuffled
+order. Lessons 2–38 give the newest sound about 20% of the prompts (never fewer
+turns than an older sound), with the rest balanced across previous characters.
+Lesson 1, the final lesson and custom sets distribute prompts evenly: counts
+differ by at most one. The final lesson has 80 prompts, two per character.
+
+Answer with the QWERTY buttons
 or your keyboard after the sound finishes. Only characters in the current
 lesson or custom set are enabled. Number and punctuation rows appear when the
 set includes them; Å/Ä/Ö use Swedish keyboard positions. Answers are untimed;

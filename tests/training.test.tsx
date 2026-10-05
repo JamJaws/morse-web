@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { mocks, resetMocks, sentCommands } from './app-mocks';
 import { routes } from '../src/routes';
 import { PREFERENCES_KEY } from '../src/settings/preferences';
+import { LocalMorsePlayer } from '../src/training/LocalMorsePlayer';
+import { morseCodeCharacters } from '../src/beep/MorseCodeCharacters';
 
 beforeEach(() => {
   resetMocks();
@@ -18,7 +20,8 @@ beforeEach(() => {
       'performance',
     ],
   });
-  vi.spyOn(Math, 'random').mockReturnValue(0); // K, including natural repeats.
+  vi.spyOn(Math, 'random').mockReturnValue(0.99999); // Stable shuffle for interaction tests.
+  vi.spyOn(LocalMorsePlayer.prototype, 'play');
 });
 afterEach(() => {
   vi.clearAllTimers();
@@ -60,6 +63,15 @@ function enabledAnswers() {
     .map(button => button.textContent);
 }
 
+function playedCharacter() {
+  const code = vi.mocked(LocalMorsePlayer.prototype.play).mock.lastCall?.[0];
+  const character = morseCodeCharacters.find(
+    character => character.code === code,
+  );
+  if (!character) throw new Error(`Unknown played sound: ${code}`);
+  return character.letter;
+}
+
 it('shows all lessons and honours bookmarked, invalid and final lesson URLs without connecting', async () => {
   open('/training?lesson=invalid');
   const list = screen.getByRole('list', { name: 'Listening lessons' });
@@ -67,6 +79,7 @@ it('shows all lessons and honours bookmarked, invalid and final lesson URLs with
   expect(within(list).getAllByRole('link')).toHaveLength(39);
   fireEvent.click(screen.getByRole('link', { name: 'Lesson 39: X' }));
   expect(screen.getByRole('heading', { name: 'Lesson 39' })).toBeDefined();
+  expect(screen.getByText('80 sounds')).toBeDefined();
   expect(screen.queryByRole('link', { name: 'Next lesson' })).toBeNull();
   await click('Start lesson');
   await finishSound();
@@ -159,7 +172,7 @@ it('enables autoplay by default, replays incorrect sounds and advances after a c
   expect(screen.getByText('Sound 2 of 20')).toBeDefined();
   for (let question = 2; question <= 20; question++) {
     await finishSound();
-    await click('Answer K');
+    await click(`Answer ${playedCharacter()}`);
     await advance(750);
   }
   expect(screen.getByText('Round complete')).toBeDefined();
@@ -168,6 +181,90 @@ it('enables autoplay by default, replays incorrect sounds and advances after a c
   const completedVoices = mocks.oscillators.length;
   await finishSound();
   expect(mocks.oscillators).toHaveLength(completedVoices);
+});
+
+it.each([
+  { lesson: 8, length: 20 },
+  { lesson: 39, length: 80 },
+])(
+  'completes and reshuffles lesson $lesson with guaranteed coverage',
+  async ({ lesson, length }) => {
+    open(`/training?lesson=${lesson}`);
+    expect(screen.getByText(`${length} sounds`)).toBeDefined();
+    await click('Start lesson');
+    const heard: string[] = [];
+    const exercise = screen.getByLabelText('Listening exercise');
+    for (let prompt = 0; prompt < length; prompt++) {
+      await finishSound();
+      const letter = playedCharacter();
+      heard.push(letter);
+      fireEvent.keyDown(exercise, { key: letter });
+      await advance(750);
+    }
+    expect(screen.getByText('Round complete')).toBeDefined();
+    expect(screen.getByText('100%')).toBeDefined();
+    expect(
+      screen.getByText(`${length} of ${length} correct without hints`),
+    ).toBeDefined();
+    expect(
+      screen.getByText('0 correct with a hint · 0 incorrect'),
+    ).toBeDefined();
+    const frequencies = new Map<string, number>();
+    for (const letter of heard)
+      frequencies.set(letter, (frequencies.get(letter) ?? 0) + 1);
+    expect(frequencies.size).toBe(lesson + 1);
+    expect(frequencies.get(lesson === 8 ? 'L' : 'X')).toBe(
+      lesson === 8 ? 4 : 2,
+    );
+    for (const [letter, count] of frequencies)
+      if (lesson !== 8 || letter !== 'L') expect(count).toBe(2);
+
+    vi.mocked(Math.random).mockReturnValue(0);
+    await click('Repeat lesson');
+    expect(screen.getByText(`Sound 1 of ${length}`)).toBeDefined();
+    expect(screen.getByText('0 correct without hints')).toBeDefined();
+    expect(playedCharacter()).not.toBe(heard[0]);
+  },
+);
+
+it('uses the selected custom set for the round length, score and repeat', async () => {
+  open('/training?practice=custom');
+  await click('A–Z');
+  expect(screen.getByText('52 sounds')).toBeDefined();
+  await click('Start practice');
+  await finishSound();
+  await click('Change characters');
+  await click('Clear');
+  for (const letter of 'ABCDEFGHIJK') await click(`Practise ${letter}`);
+  expect(screen.getByText('22 sounds')).toBeDefined();
+  await click('Start practice');
+  const heard: string[] = [];
+  const exercise = screen.getByLabelText('Listening exercise');
+  for (let prompt = 0; prompt < 22; prompt++) {
+    await finishSound();
+    const letter = playedCharacter();
+    heard.push(letter);
+    if (prompt === 0) {
+      await click('Replay');
+      await finishSound();
+      expect(playedCharacter()).toBe(letter);
+      fireEvent.keyDown(exercise, { key: letter === 'A' ? 'B' : 'A' });
+      await finishSound();
+      expect(playedCharacter()).toBe(letter);
+      expect(screen.getByText('Sound 1 of 22')).toBeDefined();
+    }
+    if (prompt === 1) await click('Show hint');
+    fireEvent.keyDown(exercise, { key: letter });
+    await advance(750);
+  }
+  for (const letter of 'ABCDEFGHIJK')
+    expect(heard.filter(played => played === letter)).toHaveLength(2);
+  expect(screen.getByText('91%')).toBeDefined();
+  expect(screen.getByText('20 of 22 correct without hints')).toBeDefined();
+  expect(screen.getByText('1 correct with a hint · 1 incorrect')).toBeDefined();
+  await click('Repeat practice');
+  expect(screen.getByText('Sound 1 of 22')).toBeDefined();
+  expect(screen.getByText('0 correct without hints')).toBeDefined();
 });
 
 it('continues across tab switches but cancels retries and advancement on settings changes', async () => {
@@ -353,6 +450,7 @@ it('supports every mapped custom character in the answer keyboard', async () => 
   const choices = screen.getAllByRole('button', { name: /^Practise / });
   for (const choice of choices) fireEvent.click(choice);
   const selected = new Set(choices.map(button => button.textContent));
+  expect(screen.getByText('114 sounds')).toBeDefined();
   await click('Start practice');
   await finishSound();
   expect(new Set(enabledAnswers())).toEqual(selected);
@@ -406,7 +504,7 @@ it('scores first answers once, allows free replays and separates visual hints', 
     await click('Next sound');
     await finishSound();
     fireEvent.keyDown(screen.getByLabelText('Listening exercise'), {
-      key: 'k',
+      key: playedCharacter(),
     });
     expect(screen.getByText('Correct!')).toBeDefined();
   }

@@ -1,6 +1,5 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import {
-  chooseCharacter,
   kochSequence,
   lessonFromParam,
   lessons,
@@ -26,18 +25,5 @@ it('keeps all 39 cumulative lessons mapped to the traditional G4FON order', () =
   }
   for (const value of [null, '', '0', '-1', '40', '01', '1.5', '1e1', 'abc']) {
     expect(lessonFromParam(value)).toBeUndefined();
-  }
-});
-
-it('selects across the whole pool and permits natural repeats', () => {
-  const random = vi.spyOn(Math, 'random').mockReturnValue(0);
-  try {
-    expect(chooseCharacter(lessons[0].characters).letter).toBe('K');
-    expect(chooseCharacter(lessons[0].characters).letter).toBe('K');
-    random.mockReturnValue(0.99999);
-    expect(chooseCharacter(lessons[0].characters).letter).toBe('M');
-    expect(chooseCharacter(lessons[38].characters).letter).toBe('X');
-  } finally {
-    random.mockRestore();
   }
 });

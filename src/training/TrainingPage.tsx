@@ -19,12 +19,7 @@ import { Button } from '../components/ui/Button';
 import { RangeControl } from '../components/ui/RangeControl';
 import type { MorseCodeCharacter } from '../beep/MorseCodeCharacter';
 import { morseCodeCharacters } from '../beep/MorseCodeCharacters';
-import {
-  lessonFromParam,
-  lessons,
-  ROUND_LENGTH,
-  type Lesson,
-} from './curriculum';
+import { lessonFromParam, lessons, type Lesson } from './curriculum';
 import { useListeningRound } from './useListeningRound';
 import { CharacterPicker } from './CharacterPicker';
 import { AnswerKeyboard } from './AnswerKeyboard';
@@ -129,8 +124,12 @@ function ListeningPractice({
   characters: readonly MorseCodeCharacter[];
   picker?: ReactNode;
 }) {
-  const session = useListeningRound(characters);
-  const { round } = session;
+  const focusLetter =
+    lesson && lesson.id > 1 && lesson.id < lessons.length
+      ? lesson.introduced[0].letter
+      : undefined;
+  const session = useListeningRound(characters, focusLetter);
+  const { round, roundLength } = session;
   const heading = useRef<HTMLHeadingElement>(null);
   const exercise = useRef<HTMLDivElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
@@ -170,7 +169,7 @@ function ListeningPractice({
   const question =
     'score' in round
       ? Math.min(
-          ROUND_LENGTH,
+          roundLength,
           round.score.answered + (round.phase === 'feedback' ? 0 : 1),
         )
       : 1;
@@ -199,8 +198,8 @@ function ListeningPractice({
         <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-stroke/60 px-5 py-2 sm:px-8">
           <p className="text-sm text-muted tabular-nums">
             {round.phase === 'intro' || round.phase === 'complete'
-              ? `${ROUND_LENGTH} sounds`
-              : `Sound ${question} of ${ROUND_LENGTH}`}
+              ? `${roundLength} sounds`
+              : `Sound ${question} of ${roundLength}`}
           </p>
           <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
             Autoplay
@@ -277,18 +276,17 @@ function ListeningPractice({
           <div className="p-5 sm:p-8">
             <h3 className="text-lg font-semibold">Round complete</h3>
             <p className="mt-6 text-5xl font-semibold text-accent tabular-nums">
-              {Math.round((round.score.correct / ROUND_LENGTH) * 100)}%
+              {Math.round((round.score.correct / roundLength) * 100)}%
             </p>
             <p className="mt-2 text-muted">
-              {round.score.correct} of {ROUND_LENGTH} correct without hints
+              {round.score.correct} of {roundLength} correct without hints
             </p>
             <p className="mt-4 text-sm text-muted">
               {round.score.hinted} correct with a hint ·{' '}
-              {ROUND_LENGTH - round.score.correct - round.score.hinted}{' '}
-              incorrect
+              {roundLength - round.score.correct - round.score.hinted} incorrect
             </p>
             <p className="mt-6 max-w-lg leading-relaxed text-muted">
-              {lesson
+              {lesson && lesson.id < lessons.length
                 ? 'Aim for 90% without hints over a few rounds before adding another character.'
                 : 'Repeat this set or choose other characters to practise.'}
             </p>
@@ -372,7 +370,7 @@ function ListeningPractice({
                     variant="primary"
                     onClick={session.next}
                   >
-                    {round.score.answered === ROUND_LENGTH
+                    {round.score.answered === roundLength
                       ? 'See results'
                       : 'Next sound'}
                     <FaArrowRight aria-hidden="true" />
