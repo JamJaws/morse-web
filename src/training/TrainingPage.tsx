@@ -27,6 +27,7 @@ import {
 } from './curriculum';
 import { useListeningRound } from './useListeningRound';
 import { CharacterPicker } from './CharacterPicker';
+import { AnswerKeyboard } from './AnswerKeyboard';
 
 const linkStyle =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent';
@@ -358,23 +359,11 @@ function ListeningPractice({
                 </>
               )}
             </div>
-            <div
-              aria-label="Answer choices"
-              role="group"
-              className="grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-2"
-            >
-              {characters.map(character => (
-                <Button
-                  key={character.letter}
-                  className="min-h-12 px-2 font-mono text-xl"
-                  aria-label={`Answer ${character.letter}`}
-                  disabled={round.phase !== 'answering'}
-                  onClick={() => session.answer(character.letter)}
-                >
-                  {character.letter}
-                </Button>
-              ))}
-            </div>
+            <AnswerKeyboard
+              characters={characters}
+              disabled={round.phase !== 'answering'}
+              onAnswer={session.answer}
+            />
             <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-stroke/60 pt-4">
               {round.phase === 'feedback' ? (
                 <>

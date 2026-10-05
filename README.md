@@ -90,9 +90,11 @@ can be bookmarked, for example `/training?lesson=3`.
 including Å, Ä and Ö. Quick sets select A–Z, 0–9 or ÅÄÖ; individual characters
 can be added or removed. The selection stays only for the current visit.
 
-Hear the examples, then start a 20-sound round. Answer with a character button
-or its keyboard key after the sound finishes. Answers are untimed; character
-speed starts at 20 WPM. Replays are free; Show hint is scored separately.
+Hear the examples, then start a 20-sound round. Answer with the QWERTY buttons
+or your keyboard after the sound finishes. Only characters in the current
+lesson or custom set are enabled. Number and punctuation rows appear when the
+set includes them; Å/Ä/Ö use Swedish keyboard positions. Answers are untimed;
+character speed starts at 20 WPM. Replays are free; Show hint is scored separately.
 An incorrect answer automatically replays the same sound for another try. The
 first answer determines the score, so retries cannot turn a mistake into credit.
 

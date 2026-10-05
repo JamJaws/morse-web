@@ -133,6 +133,11 @@ Defaults and scoring:
 - Use **20 prompts per round**. Offer replay, hint and exit. A separate Pause
   button is unnecessary: each sound waits indefinitely for an answer. Keep
   answer buttons stable while practising and support physical keyboard input.
+- Arrange answers as a QWERTY keyboard, with unavailable letters visible but
+  disabled. Show the number row and each punctuation row only when the set
+  contains one of its characters. Custom sets with Å/Ä/Ö use Swedish letter
+  positions. The lesson sequence still determines which characters are taught,
+  while the keyboard gives answers a familiar, stable location.
 - Choose uniformly from the lesson pool. Natural repeats are allowed, including
   in the two-character first lesson. No adaptive weighting or remembered
   weaknesses; a short round need not cover every character in later lessons.
@@ -324,9 +329,10 @@ Possible commit subjects:
 
 Verification on 2026-10-05:
 
-- All **213 Vitest tests** pass, including 20 training tests for curriculum,
+- All **215 Vitest tests** pass, including 22 training tests for curriculum,
   scheduling/cancellation, scoring, navigation, blocked storage, keyboard
-  input and live-session cleanup.
+  input and live-session cleanup, plus QWERTY rows, disabled keys, all custom
+  characters and completed answers surviving tab/audio-context changes.
 - Type checking, ESLint, Prettier and the production build pass. Vite retains
   its bundle-size warning; no runtime dependencies were added.
 - A Chromium smoke check against the production build passed desktop and

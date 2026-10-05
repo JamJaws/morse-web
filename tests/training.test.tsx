@@ -53,6 +53,12 @@ async function advance(ms: number) {
 function toggleAutoplay() {
   fireEvent.click(screen.getByRole('switch', { name: 'Autoplay next sound' }));
 }
+function enabledAnswers() {
+  return screen
+    .getAllByRole('button', { name: /^Answer / })
+    .filter(button => !(button as HTMLButtonElement).disabled)
+    .map(button => button.textContent);
+}
 
 it('shows all lessons and honours bookmarked, invalid and final lesson URLs without connecting', async () => {
   open('/training?lesson=invalid');
@@ -63,7 +69,8 @@ it('shows all lessons and honours bookmarked, invalid and final lesson URLs with
   expect(screen.getByRole('heading', { name: 'Lesson 39' })).toBeDefined();
   expect(screen.queryByRole('link', { name: 'Next lesson' })).toBeNull();
   await click('Start lesson');
-  expect(screen.getAllByRole('button', { name: /^Answer / })).toHaveLength(40);
+  await finishSound();
+  expect(enabledAnswers()).toHaveLength(40);
   expect(mocks.socketUrl).toBeNull();
   expect(mocks.sendMessage).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('link', { name: 'All lessons' }));
@@ -94,13 +101,9 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
   ).toBe(true);
   expect(screen.getByText('3 characters selected')).toBeDefined();
   await click('Start practice');
-  expect(
-    screen
-      .getAllByRole('button', { name: /^Answer / })
-      .map(button => button.textContent),
-  ).toEqual(['Å', 'Ä', 'Ö']);
   expect(mocks.oscillators).toHaveLength(5); // Å is .--.-
   await finishSound();
+  expect(new Set(enabledAnswers())).toEqual(new Set(['Å', 'Ä', 'Ö']));
   fireEvent.keyDown(screen.getByLabelText('Listening exercise'), { key: 'å' });
   expect(screen.getByText('Correct!')).toBeDefined();
   await click('Change characters');
@@ -112,11 +115,8 @@ it('practises a custom set including ÅÄÖ, with keyboard answers and no saved 
   await click('Practise K');
   await click('Practise Ä');
   await click('Start practice');
-  expect(
-    screen
-      .getAllByRole('button', { name: /^Answer / })
-      .map(button => button.textContent),
-  ).toEqual(['K', 'Å', 'Ö']);
+  await finishSound();
+  expect(new Set(enabledAnswers())).toEqual(new Set(['K', 'Å', 'Ö']));
   expect(screen.getByText('Sound 1 of 20')).toBeDefined();
   expect(write).not.toHaveBeenCalled();
   expect(mocks.sendMessage).not.toHaveBeenCalled();
@@ -300,10 +300,68 @@ it('supports a single selected character and clears quick sets without duplicate
   await click('Clear');
   await click('Practise Ö');
   await click('Start practice');
-  expect(screen.getAllByRole('button', { name: /^Answer / })).toHaveLength(1);
   await finishSound();
+  expect(enabledAnswers()).toEqual(['Ö']);
   await click('Answer Ö');
   expect(screen.getByText('Correct!')).toBeDefined();
+});
+
+it('keeps QWERTY positions and ignores unavailable keys while revealing only needed rows', async () => {
+  open();
+  await click('Start lesson');
+  await finishSound();
+  expect(
+    within(screen.getByRole('group', { name: 'Letters' }))
+      .getAllByRole('button')
+      .map(button => button.textContent)
+      .join(''),
+  ).toBe('QWERTYUIOPASDFGHJKLZXCVBNM');
+  expect(screen.queryByRole('group', { name: 'Numbers' })).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Punctuation' })).toBeNull();
+  expect(enabledAnswers()).toEqual(['K', 'M']);
+  await click('Answer Q');
+  fireEvent.keyDown(screen.getByLabelText('Listening exercise'), { key: 'q' });
+  expect(screen.getByText('What did you hear?')).toBeDefined();
+  expect(screen.getByText('0 correct without hints')).toBeDefined();
+
+  fireEvent.click(screen.getByRole('link', { name: 'All lessons' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Lesson 12: .' }));
+  await click('Start lesson');
+  await finishSound();
+  expect(screen.queryByRole('group', { name: 'Numbers' })).toBeNull();
+  expect(screen.getByRole('group', { name: 'Punctuation' })).toBeDefined();
+  expect(enabledAnswers()).toContain('.');
+  expect(enabledAnswers()).not.toContain(',');
+
+  fireEvent.click(screen.getByRole('link', { name: 'All lessons' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Lesson 17: 0' }));
+  await click('Start lesson');
+  await finishSound();
+  expect(
+    within(screen.getByRole('group', { name: 'Numbers' }))
+      .getAllByRole('button')
+      .map(button => button.textContent)
+      .join(''),
+  ).toBe('1234567890');
+  expect(enabledAnswers()).toContain('0');
+  expect(enabledAnswers()).not.toContain('1');
+});
+
+it('supports every mapped custom character in the answer keyboard', async () => {
+  open('/training?practice=custom');
+  fireEvent.click(screen.getByText('Punctuation', { selector: 'summary' }));
+  const choices = screen.getAllByRole('button', { name: /^Practise / });
+  for (const choice of choices) fireEvent.click(choice);
+  const selected = new Set(choices.map(button => button.textContent));
+  await click('Start practice');
+  await finishSound();
+  expect(new Set(enabledAnswers())).toEqual(selected);
+  expect(
+    within(screen.getByRole('group', { name: 'Letters' }))
+      .getAllByRole('button')
+      .map(button => button.textContent)
+      .join(''),
+  ).toBe('QWERTYUIOPÅASDFGHJKLÖÄZXCVBNM');
 });
 
 it('scores first answers once, allows free replays and separates visual hints', async () => {
