@@ -312,6 +312,10 @@ Possible commit subjects:
   repeated hints and instructional labels have been removed. Sound settings
   apply to the current lesson and reset when it is left. Only the existing
   saved volume is read; the receiving speed always starts at 20 WPM.
+- Lesson intros centre the character previews, instructions and Start button.
+  Preview buttons use the main key's accent colour while playing, with a small
+  speaker icon and stable accessible labels instead of changing playback text.
+  The answer-preview control also uses colour and an accessible busy state.
 - `src/routes.tsx` keeps Training and Live as sibling routes. The shared header
   is presentation only, so live connections and tones are cleaned up on exit.
 

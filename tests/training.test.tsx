@@ -251,9 +251,17 @@ it('waits for a feedback example to finish before autoplaying the next sound', a
   await click('Hear answer');
   await advance(900); // Longer than the usual feedback delay, but K is still playing.
   expect(screen.getByText('Sound 1 of 20')).toBeDefined();
-  expect(screen.getByRole('button', { name: 'Playing…' })).toBeDefined();
+  expect(
+    screen
+      .getByRole('button', { name: 'Hear answer' })
+      .getAttribute('aria-busy'),
+  ).toBe('true');
   await advance(400);
-  expect(screen.getByRole('button', { name: 'Hear answer' })).toBeDefined();
+  expect(
+    screen
+      .getByRole('button', { name: 'Hear answer' })
+      .getAttribute('aria-busy'),
+  ).toBe('false');
   expect(screen.getByText('Sound 1 of 20')).toBeDefined();
   await advance(750);
   expect(screen.getByText('Sound 2 of 20')).toBeDefined();

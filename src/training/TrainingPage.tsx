@@ -31,10 +31,16 @@ import { CharacterPicker } from './CharacterPicker';
 const linkStyle =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent';
 
-function Pattern({ character }: { character: MorseCodeCharacter }) {
+function Pattern({
+  character,
+  className = 'text-accent',
+}: {
+  character: MorseCodeCharacter;
+  className?: string;
+}) {
   return (
     <span
-      className="inline-flex items-center gap-1.5"
+      className={`inline-flex items-center gap-1.5 ${className}`}
       role="img"
       aria-label={character.code
         .split('')
@@ -44,7 +50,7 @@ function Pattern({ character }: { character: MorseCodeCharacter }) {
       {character.code.split('').map((mark, index) => (
         <span
           key={index}
-          className={`h-1.5 rounded-full bg-accent ${mark === '.' ? 'w-1.5' : 'w-5'}`}
+          className={`h-1.5 rounded-full bg-current ${mark === '.' ? 'w-1.5' : 'w-5'}`}
         />
       ))}
     </span>
@@ -216,31 +222,34 @@ function ListeningPractice({
           </label>
         </div>
         {round.phase === 'intro' ? (
-          <div className="p-5 sm:p-8">
+          <div className={`p-5 sm:p-8 ${lesson ? 'text-center' : ''}`}>
             {lesson ? (
               <>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap justify-center gap-3">
                   {lesson.introduced.map(character => (
                     <Button
                       key={character.letter}
-                      className="min-w-28 flex-col gap-4 p-5"
+                      className="group relative h-28 w-28 flex-col gap-4 rounded-2xl p-4 data-[playing=true]:border-accent data-[playing=true]:bg-accent data-[playing=true]:text-accent-ink sm:h-32 sm:w-32"
                       aria-label={`Hear ${character.letter}`}
+                      aria-busy={session.previewing === character.letter}
+                      data-playing={session.previewing === character.letter}
                       onClick={() => void session.preview(character)}
                     >
                       <span className="font-mono text-4xl">
                         {character.letter}
                       </span>
-                      <Pattern character={character} />
-                      <span className="flex items-center gap-2 text-xs text-muted">
-                        <FaVolumeUp aria-hidden="true" />
-                        {session.previewing === character.letter
-                          ? 'Playing…'
-                          : 'Hear sound'}
-                      </span>
+                      <Pattern
+                        character={character}
+                        className="text-accent group-data-[playing=true]:text-accent-ink"
+                      />
+                      <FaVolumeUp
+                        aria-hidden="true"
+                        className="absolute right-3 top-3 text-xs text-muted group-data-[playing=true]:text-accent-ink"
+                      />
                     </Button>
                   ))}
                 </div>
-                <p className="mt-6 max-w-lg leading-relaxed text-muted">
+                <p className="mx-auto mt-6 max-w-lg leading-relaxed text-muted">
                   Listen, then choose a character or type its key.
                 </p>
                 <p className="mt-4 text-sm leading-relaxed text-muted">
@@ -381,10 +390,13 @@ function ListeningPractice({
                   </Button>
                   <Button
                     variant="ghost"
+                    aria-busy={session.previewing !== null}
+                    data-playing={session.previewing !== null}
+                    className="data-[playing=true]:bg-accent/15 data-[playing=true]:text-accent"
                     onClick={() => void session.preview(round.prompt.character)}
                   >
                     <FaVolumeUp aria-hidden="true" />
-                    {session.previewing ? 'Playing…' : 'Hear answer'}
+                    Hear answer
                   </Button>
                 </>
               ) : round.phase === 'paused' ? (
