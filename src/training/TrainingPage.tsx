@@ -135,9 +135,16 @@ function ListeningPractice({
   const nextButton = useRef<HTMLButtonElement>(null);
   const resumeButton = useRef<HTMLButtonElement>(null);
   const repeatButton = useRef<HTMLButtonElement>(null);
+  const soundSettings = useRef<HTMLDetailsElement>(null);
   const feedbackPaused = round.phase === 'feedback' && round.paused;
 
   useEffect(() => {
+    // Keep settings controls focused when an adjustment pauses the round.
+    if (
+      (round.phase === 'paused' || feedbackPaused) &&
+      soundSettings.current?.contains(document.activeElement)
+    )
+      return;
     if (round.phase === 'intro') heading.current?.focus();
     if (round.phase === 'playing') exercise.current?.focus();
     if (round.phase === 'feedback') nextButton.current?.focus();
@@ -419,7 +426,7 @@ function ListeningPractice({
             </p>
           </div>
         )}
-        <details className="border-t border-stroke/60">
+        <details ref={soundSettings} className="border-t border-stroke/60">
           <summary className="min-h-11 cursor-pointer rounded-b-2xl px-5 py-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:px-8">
             Sound settings{' '}
             <span className="ml-2 font-normal text-muted">

@@ -306,6 +306,44 @@ it('continues across tab switches but cancels retries and advancement on setting
   expect(screen.getByText('2 correct without hints')).toBeDefined();
 });
 
+it.each(
+  ['playing', 'answering', 'retry', 'feedback'].flatMap(phase => [
+    { phase, label: 'Character speed', value: 21 },
+    { phase, label: 'Volume', value: 70 },
+  ]),
+)(
+  'keeps $label focused when settings pause $phase',
+  async ({ phase, label, value }) => {
+    open();
+    await click('Start lesson');
+    if (phase !== 'playing') await finishSound();
+    if (phase === 'retry') await click('Answer M');
+    if (phase === 'feedback') await click('Answer K');
+
+    const slider = screen.getByLabelText(label) as HTMLInputElement;
+    (slider.closest('details') as HTMLDetailsElement).open = true;
+    slider.focus();
+    fireEvent.change(slider, { target: { value } });
+    expect(screen.getByText('Paused')).toBeDefined();
+    expect(document.activeElement).toBe(slider);
+
+    fireEvent.change(document.activeElement!, { target: { value: value + 1 } });
+    expect(slider.value).toBe(String(value + 1));
+    expect(document.activeElement).toBe(slider);
+    const voices = mocks.oscillators.length;
+    await finishSound();
+    expect(mocks.oscillators).toHaveLength(voices);
+    expect(screen.getByText('Sound 1 of 20')).toBeDefined();
+
+    await click(phase === 'feedback' ? 'Next sound' : 'Resume');
+    expect(document.activeElement).toBe(
+      screen.getByLabelText('Listening exercise'),
+    );
+    await finishSound();
+    expect(screen.getByText('What did you hear?')).toBeDefined();
+  },
+);
+
 it('lets autoplay be disabled and manual Next or navigation cancel pending callbacks', async () => {
   open();
   await click('Start lesson');
