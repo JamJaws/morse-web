@@ -79,3 +79,46 @@ The header's **More actions** (⋯) menu contains
 switching panels or reconnecting. The `?tx`
 URL shortcut opens that panel initially. `?debug` enables playback diagnostics;
 statistics are not sampled otherwise.
+
+## Listening training
+
+Open **Training** in the header, or visit `/training`. All 39 Koch lessons are
+available, starting with K/M and adding characters in the traditional G4FON order. A lesson
+can be bookmarked, for example `/training?lesson=3`.
+
+**Custom practice** lets you choose any mapped letters, digits or punctuation,
+including Å, Ä and Ö. Quick sets select A–Z, 0–9 or ÅÄÖ; individual characters
+can be added or removed. The selection stays only for the current visit.
+
+Hear the examples, then start a round: at least 20 sounds, growing to twice
+the number of selected characters. Every character is included, in shuffled
+order. Lessons 2–38 give the newest sound about 20% of the prompts (never fewer
+turns than an older sound), with the rest balanced across previous characters.
+Lesson 1, the final lesson and custom sets distribute prompts evenly: counts
+differ by at most one. The final lesson has 80 prompts, two per character.
+
+Answer with the QWERTY buttons
+or your keyboard after the sound finishes. Only characters in the current
+lesson or custom set are enabled. Number and punctuation rows appear when the
+set includes them; Å/Ä/Ö use Swedish keyboard positions. Answers are untimed;
+character speed starts at 20 WPM. Replays are free; Show hint is scored separately.
+An incorrect answer automatically replays the same sound for another try. The
+first answer determines the score, so retries cannot turn a mistake into credit.
+
+**Autoplay** is on by default: after 750 ms of correct-answer feedback, the
+next sound plays automatically. Turn it off in the practice card to select
+Next sound yourself. Autoplay stops at the round results.
+Each sound waits for an answer indefinitely, so no Pause button is needed.
+Switching tabs lets the current sound finish, then the question waits for your
+answer. Leaving the lesson, an actual audio interruption or changing sound
+settings cancels pending playback and advancement.
+
+Training runs locally without Connect or a backend. Scores and sound-setting
+changes are kept only in memory and cleared when leaving the lesson. The page
+reads the saved live volume but does not change live preferences. If the browser
+interrupts an unfinished sound, Resume plays it again. A completed sound remains
+answerable even if the audio context is later suspended.
+
+Leaving Live for Training disconnects the live session and stops its tones.
+Returning to Live requires Connect. Offline page reloads and sending practice
+are not included yet. See [the training roadmap](docs/training-plan.md).

@@ -19,6 +19,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { OperatorList } from './components/OperatorList';
 import { MoreActionsMenu } from './components/MoreActionsMenu';
 import { Footer } from './components/Footer';
+import { SiteHeader } from './components/SiteHeader';
 import { Button } from './components/ui/Button';
 import { useMorseSession } from './hooks/useMorseSession';
 import type { MorseSession } from './hooks/useMorseSession';
@@ -112,73 +113,64 @@ function App() {
       className="flex min-h-dvh flex-col bg-canvas text-ink"
       onBlur={input.cancel}
     >
-      <header className="relative z-10 border-b border-stroke/60">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <FaBroadcastTower
-              aria-hidden="true"
-              className="text-xl text-accent"
-            />
-            <h1 className="text-xl font-semibold tracking-tight">Morse</h1>
-          </div>
-          <div
-            role="group"
-            aria-label="Session controls"
-            className="flex flex-wrap items-center gap-1 sm:gap-2"
-          >
-            <ConnectionStatus
-              readyState={
-                session.starting ? ReadyState.CONNECTING : session.readyState
-              }
-              operators={session.operators.length}
-              latency={session.latency}
-            />
-            {session.started && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:w-auto sm:px-4"
-                aria-label={session.muted ? 'Unmute sound' : 'Mute sound'}
-                onClick={session.toggleMute}
-              >
-                {session.muted ? (
-                  <FaVolumeMute aria-hidden="true" />
-                ) : (
-                  <FaVolumeUp aria-hidden="true" />
-                )}
-                <span className="hidden sm:inline">
-                  {session.muted ? 'Unmute' : 'Mute'}
-                </span>
-              </Button>
-            )}
+      <SiteHeader>
+        <div
+          role="group"
+          aria-label="Session controls"
+          className="flex flex-wrap items-center gap-1 sm:gap-2"
+        >
+          <ConnectionStatus
+            readyState={
+              session.starting ? ReadyState.CONNECTING : session.readyState
+            }
+            operators={session.operators.length}
+            latency={session.latency}
+          />
+          {session.started && (
             <Button
-              variant={showSettings ? 'secondary' : 'ghost'}
+              variant="ghost"
               size="icon"
               className="sm:w-auto sm:px-4"
-              aria-label="Settings"
-              aria-expanded={showSettings}
-              aria-controls="settings"
-              onClick={() => setShowSettings(current => !current)}
+              aria-label={session.muted ? 'Unmute sound' : 'Mute sound'}
+              onClick={session.toggleMute}
             >
-              <FaSlidersH aria-hidden="true" />
-              <span className="hidden sm:inline">Settings</span>
+              {session.muted ? (
+                <FaVolumeMute aria-hidden="true" />
+              ) : (
+                <FaVolumeUp aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">
+                {session.muted ? 'Unmute' : 'Mute'}
+              </span>
             </Button>
-            {session.started && (
-              <MoreActionsMenu
-                triggerRef={moreActionsTrigger}
-                onTransmitText={() => {
-                  // Reveal the input before focusing it in this user action.
-                  flushSync(() => {
-                    setShowSettings(false);
-                    setShowMessage(true);
-                  });
-                  messageInput.current?.focus();
-                }}
-              />
-            )}
-          </div>
+          )}
+          <Button
+            variant={showSettings ? 'secondary' : 'ghost'}
+            size="icon"
+            className="sm:w-auto sm:px-4"
+            aria-label="Settings"
+            aria-expanded={showSettings}
+            aria-controls="settings"
+            onClick={() => setShowSettings(current => !current)}
+          >
+            <FaSlidersH aria-hidden="true" />
+            <span className="hidden sm:inline">Settings</span>
+          </Button>
+          {session.started && (
+            <MoreActionsMenu
+              triggerRef={moreActionsTrigger}
+              onTransmitText={() => {
+                // Reveal the input before focusing it in this user action.
+                flushSync(() => {
+                  setShowSettings(false);
+                  setShowMessage(true);
+                });
+                messageInput.current?.focus();
+              }}
+            />
+          )}
         </div>
-      </header>
+      </SiteHeader>
       {/* Equal side columns keep the transmitter centered across the page. */}
       <main
         className={`mx-auto w-full max-w-7xl grow px-4 py-8 sm:px-6 sm:py-12 ${session.started ? 'grid content-start gap-8 lg:grid-cols-[18rem_minmax(0,1fr)_18rem]' : 'flex flex-col justify-center'}`}
